@@ -2,15 +2,16 @@ const CACHE_NAME = 'kayooh-v3-bunker';
 
 // Aset yang WAJIB ada di cache agar UI tidak hancur saat offline
 const STATIC_ASSETS = [
-    './',
+    './login.php',       // Menggantikan './'
     './dashboard.php',
     './assets/style.css',
     './assets/kayooh.png',
     './assets/favicon-32x32.png',
     './assets/favicon-16x16.png',
-    './assets/site.webmanifest', // Wajib di-cache untuk PWA
+    './assets/site.webmanifest',
     'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
-    'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
+    'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js' // Wajib agar bisa pamer (flexing) saat offline!
 ];
 
 self.addEventListener('install', event => {

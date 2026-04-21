@@ -24,6 +24,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($pesan_error)) {
 
     if (empty($email) || empty($password)) {
         $pesan_error = 'Email dan Password wajib diisi, wak!';
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        // IMPROVEMENT: Validasi format email agar tidak ada yang mendaftar tanpa @
+        $pesan_error = 'Format email tidak valid, pastikan menggunakan format yang benar (contoh: admin@email.com)!';
     } elseif ($password !== $password_confirm) {
         $pesan_error = 'Konfirmasi sandi tidak cocok!';
     } else {
@@ -79,10 +82,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($pesan_error)) {
     <link rel="manifest" href="assets/site.webmanifest">
 </head>
 <body>
+    <script>if(localStorage.getItem('theme') === 'dark') document.body.classList.add('dark-mode');</script>
+    
+    <div style="position: absolute; top: 20px; right: 20px;">
+        <button onclick="toggleTheme()" class="theme-toggle" id="theme-icon">🌙</button>
+    </div>
+
     <div class="centered-container">
         <div class="box">
             <div class="brand-logo">KAYOOH</div>
-            <p class="subtitle">Inisialisasi sistem pelacakan mandiri Anda</p>
+            <p class="subtitle" style="color:var(--text-color); opacity:0.7; font-size:12px;">Inisialisasi sistem pelacakan mandiri Anda</p>
             
             <?php if($pesan_error): ?>
                 <div class="error"><?= htmlspecialchars($pesan_error) ?></div>
@@ -96,14 +105,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($pesan_error)) {
                 <div class="input-group">
                     <label>Kata Sandi</label>
                     <input type="password" name="password" id="password" placeholder="Minimal 8 karakter" required>
+                    <button type="button" class="toggle-btn" onclick="togglePassword('password', this)">LIHAT</button>
                 </div>
                 <div class="input-group">
                     <label>Konfirmasi Kata Sandi</label>
                     <input type="password" name="password_confirm" id="password_confirm" placeholder="Ketik ulang sandi" required>
+                    <button type="button" class="toggle-btn" onclick="togglePassword('password_confirm', this)">LIHAT</button>
                 </div>
                 <button type="submit" class="btn-primary" <?= !is_writable(__DIR__) ? 'disabled style="background:gray;"' : '' ?>>PASANG SEKARANG</button>
             </form>
         </div>
     </div>
+
+    <script>
+        // Logika Sembunyikan/Lihat Sandi
+        function togglePassword(inputId, btn) {
+            var pwd = document.getElementById(inputId);
+            if (pwd.type === "password") {
+                pwd.type = "text";
+                btn.textContent = "SEMBUNYI";
+            } else {
+                pwd.type = "password";
+                btn.textContent = "LIHAT";
+            }
+        }
+
+        // Logika Toggle Tema
+        function toggleTheme() {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            document.getElementById('theme-icon').textContent = isDark ? '☀️' : '🌙';
+        }
+        
+        // Sesuaikan ikon saat halaman selesai dimuat
+        window.addEventListener('DOMContentLoaded', () => { 
+            if(localStorage.getItem('theme') === 'dark') {
+                document.getElementById('theme-icon').textContent = '☀️';
+            }
+        });
+    </script>
 </body>
 </html>
