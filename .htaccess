@@ -1,0 +1,20 @@
+# Menutup akses ke file sensitif dari browser
+<FilesMatch "\.(sqlite|lock|env|log|sh)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Mencegah penampilan daftar isi direktori
+Options -Indexes
+
+# Mengamankan Service Worker
+<Files "sw.js">
+    Header set Cache-Control "max-age=0, no-cache, no-store, must-revalidate"
+</Files>
+
+# Mengatur agar Header dikirim dengan aman
+<IfModule mod_headers.c>
+    Header set X-XSS-Protection "1; mode=block"
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+</IfModule>

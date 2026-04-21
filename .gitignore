@@ -1,0 +1,14 @@
+# Database SQLite Kayooh (JANGAN DIUPLOAD)
+kayooh.sqlite
+kayooh.sqlite-journal
+
+# File Penanda Instalasi (JANGAN DIUPLOAD)
+install.lock
+
+# Environment Variables 
+.env
+
+# Folder OS & IDE
+.DS_Store
+.vscode/
+.idea/
