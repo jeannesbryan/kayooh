@@ -299,17 +299,19 @@ function startTracking() {
                 // Update Jarak dan Simpan Titik Koordinat (hanya jika bergerak)
                 if (lastCoord) {
                     const dist = calculateDistance(lastCoord.lat, lastCoord.lon, latitude, longitude);
-                    // Filter noise: Hanya rekam jika bergerak lebih dari 5 meter
-                    if (dist > 0.005) {
+                    // Filter noise: Turunkan jadi 2 meter (0.002 km)
+                    if (dist > 0.002) {
                         totalDistance += dist;
                         document.getElementById('display-distance').textContent = totalDistance.toFixed(2);
                         routePath.push([latitude, longitude]); // Simpan jejak
+                        // Pindahkan update lastCoord ke DALAM sini!
+                        lastCoord = { lat: latitude, lon: longitude }; 
                     }
                 } else {
                     // Titik awal
                     routePath.push([latitude, longitude]);
+                    lastCoord = { lat: latitude, lon: longitude };
                 }
-                lastCoord = { lat: latitude, lon: longitude };
             }
         }
     }, (err) => {

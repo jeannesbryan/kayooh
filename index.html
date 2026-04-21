@@ -38,7 +38,7 @@
             margin-bottom: 40px;
         }
         .logo-img {
-            height: 60px; /* Ukuran logo disesuaikan */
+            height: 60px;
             width: auto;
             margin-bottom: 15px;
         }
@@ -68,33 +68,18 @@
             letter-spacing: -0.5px;
         }
         h3 {
-            font-size: 16px;
-            color: #34495e;
-            margin-top: 30px;
+            font-size: 17px;
+            color: #2c3e50;
+            margin-top: 35px;
+            font-weight: 800;
         }
         p, li {
             font-size: 15px;
             color: #5d6d7e;
         }
-        .feature-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin-top: 20px;
-        }
-        .feature-card {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 12px;
-            border: 1px solid #edf2f7;
-        }
-        .feature-card h4 {
-            margin: 0 0 10px 0;
-            color: var(--primary-color);
-        }
         .pro-con-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 20px;
             margin-top: 20px;
         }
@@ -117,24 +102,31 @@
             font-size: 13px;
             margin: 20px 0;
         }
-        .badge {
-            display: inline-block;
-            background: #2ecc71;
-            color: white;
-            padding: 3px 8px;
-            border-radius: 6px;
-            font-size: 10px;
-            font-weight: bold;
-            vertical-align: middle;
-            margin-left: 5px;
+        .strava-step {
+            background: #fff;
+            border: 1px solid #eee;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
         }
+        .strava-step b { color: var(--primary-color); }
+        
         .footer {
             margin-top: 60px;
             text-align: center;
             font-size: 13px;
-            color: #bdc3c7;
+            color: #000000; /* Warna diubah jadi hitam pekat */
             border-top: 1px solid #edf2f7;
             padding-top: 30px;
+            font-weight: 500;
+        }
+        .footer a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .footer a:hover {
+            text-decoration: underline;
         }
     </style>
 </head>
@@ -148,61 +140,79 @@
     </div>
 
     <h2>Filosofi & Nilai Jual</h2>
-    <p><b>Kayooh</b> adalah jawaban atas kebutuhan akan privasi dan kedaulatan data di era digital. Sebagai aplikasi pelacak gowes mandiri, jejak rute dan statistik Anda tidak akan pernah dikirim ke server pihak ketiga untuk diolah atau dijual. Semua data tersimpan aman di server pribadi Anda.</p>
+    <p><b>Kayooh</b> adalah aplikasi pelacak gowes mandiri (Self-Hosted) yang memberikan kedaulatan penuh atas data pribadi Anda. Di dunia di mana data adalah komoditas, Kayooh memastikan jejak rute dan statistik Anda tetap menjadi rahasia Anda, tersimpan aman di server pribadi Anda tanpa intervensi pihak ketiga.</p>
 
     <h2>Analisis Performa</h2>
     <div class="pro-con-grid">
         <div class="box-list pro-box">
             <h4>✅ Kelebihan</h4>
             <ul>
-                <li><b>Privasi Mutlak</b>: Kontrol penuh atas data aktivitas pribadi.</li>
-                <li><b>Ringan & Cepat</b>: Antarmuka bersih tanpa beban fitur sosial yang berat.</li>
-                <li><b>Bunker Mode</b>: Tetap berjalan stabil meskipun melewati area tanpa sinyal internet.</li>
-                <li><b>Multi-Flexing</b>: Ekspor statistik gowes dengan desain transparan yang profesional.</li>
+                <li><b>Privasi Mutlak</b>: Data tersimpan di server Anda sendiri.</li>
+                <li><b>Offline Mode (PWA)</b>: PWA tetap stabil meskipun sinyal internet hilang.</li>
+                <li><b>Smart Auto-Pause</b>: Timer berhenti otomatis saat kecepatan nol.</li>
+                <li><b>Template Flexing</b>: Desain share statistik transparan yang elegan.</li>
             </ul>
         </div>
         <div class="box-list con-box">
             <h4>⚠️ Kekurangan</h4>
             <ul>
-                <li><b>Screen-On Required</b>: Layar HP harus tetap menyala selama perekaman agar GPS tidak ditidurkan oleh sistem Android.</li>
-                <li><b>Konsumsi Baterai</b>: Layar yang menyala terus-menerus berdampak pada penggunaan daya baterai yang lebih tinggi.</li>
-                <li><b>Wajib HTTPS</b>: Sensor GPS hanya akan berfungsi jika domain menggunakan SSL yang valid.</li>
+                <li><b>Layar Harus Menyala</b>: Browser membutuhkan layar aktif agar GPS tidak mati.</li>
+                <li><b>Wajib HTTPS</b>: Sensor lokasi membutuhkan sertifikat SSL aktif.</li>
+                <li><b>Setup Teknis</b>: Membutuhkan pengetahuan dasar manajemen web server.</li>
             </ul>
-        </div>
-    </div>
-
-    <h2>Fitur Unggulan</h2>
-    <div class="feature-grid">
-        <div class="feature-card">
-            <h4>📡 Live GPS Tracker <span class="badge">PRO</span></h4>
-            <p>Rekam rute langsung dari browser HP dengan dukungan <b>Smart Auto-Pause</b> yang akan menjeda timer secara otomatis saat Anda terhenti di lampu merah.</p>
-        </div>
-        <div class="feature-card">
-            <h4>🔄 Strava Sync</h4>
-            <p>Impor riwayat gowes lama Anda dari Strava ke database mandiri Kayooh hanya dengan beberapa klik.</p>
         </div>
     </div>
 
     <h2>Panduan Instalasi Server</h2>
     <ol>
-        <li>Unggah <i>source code</i> ke direktori web server Anda.</li>
-        <li>Atur hak akses direktori agar PHP bisa menulis database:
+        <li>Unggah kode sumber ke direktori web server (misal: <code>/var/www/html/kayooh</code>).</li>
+        <li>Pastikan direktori dapat ditulisi oleh PHP agar database SQLite bisa dibuat:
 <pre>sudo chown -R www-data:www-data /folder-kayooh
 sudo chmod -R 755 /folder-kayooh</pre>
         </li>
-        <li>Akses domain Anda untuk memulai proses <b>Setup Akun Admin</b>.</li>
+        <li>Akses domain Anda untuk memulai <b>Setup Akun Admin</b> via <code>install.php</code>.</li>
     </ol>
 
-    <h2>Panduan Impor dari Strava</h2>
-    <ol>
-        <li>Buat aplikasi API di <a href="https://www.strava.com/settings/api" target="_blank">Strava API Settings</a>.</li>
-        <li>Masukkan <i>Client ID</i> & <i>Secret</i> di halaman <b>Sync Strava</b> pada Kayooh.</li>
-        <li>Gunakan tombol <b>Dapatkan Token Sakti</b> untuk otorisasi.</li>
-        <li>Klik <b>Sinkronisasi Sekarang</b> untuk menarik data aktivitas.</li>
-    </ol>
+    <h2>Panduan Lengkap API Strava</h2>
+    <p>Agar Kayooh bisa menarik data lama Anda dari Strava, Anda perlu mendaftarkan aplikasi di portal pengembang Strava:</p>
+
+    <div class="strava-step">
+        <h3>Langkah 1: Membuat Aplikasi API</h3>
+        <ol>
+            <li>Login ke akun Strava Anda di PC/Laptop.</li>
+            <li>Buka halaman <b>My API Application</b>: <a href="https://www.strava.com/settings/api" target="_blank">strava.com/settings/api</a>.</li>
+            <li>Isi formulir pembuatan aplikasi sebagai berikut:
+                <ul>
+                    <li><b>Application Name</b>: Contoh: "Kayooh"</li>
+                    <li><b>Category</b>: Pilih "Visualizer" atau "Other"</li>
+                    <li><b>Website</b>: Isi dengan URL domain Kayooh Anda (misal: <code>https://jomokerto.web.id</code>)</li>
+                    <li><b>Application Description</b>: Contoh: "Self-hosted cycling tracker for personal use"</li>
+                    <li><b>Authorization Callback Domain</b>: <b>PENTING!</b> Isi dengan nama domain saja tanpa https dan tanpa folder (misal: <code>jomokerto.web.id</code>)</li>
+                </ul>
+            </li>
+            <li>Klik <b>Create</b>. Jika diminta mengunggah ikon, unggah gambar apa saja berukuran persegi.</li>
+        </ol>
+
+        <h3>Langkah 2: Mendapatkan Kredensial</h3>
+        <ol>
+            <li>Setelah aplikasi dibuat, Anda akan melihat halaman ringkasan aplikasi.</li>
+            <li>Catat <b>Client ID</b> dan <b>Client Secret</b> yang muncul. Jangan berikan kode ini kepada siapapun!</li>
+        </ol>
+
+        <h3>Langkah 3: Menghubungkan ke Kayooh</h3>
+        <ol>
+            <li>Buka Dashboard Kayooh Anda, lalu klik tombol <b>SYNC STRAVA</b>.</li>
+            <li>Masukkan <i>Client ID</i> dan <i>Client Secret</i> tadi ke form, lalu klik <b>Simpan Pengaturan</b>.</li>
+            <li>Klik tombol <b>🔑 Dapatkan Token Sakti</b>. Berikan izin akses pada halaman Strava yang muncul.</li>
+            <li>Setelah kembali ke Kayooh, klik <b>SINKRONISASI SEKARANG</b> untuk mulai mengimpor data.</li>
+        </ol>
+    </div>
 
     <div class="footer">
-        &copy; 2026 Kayooh Project. Dibuat untuk kebebasan mengayuh. #KayoohTerus
+        &copy; 2026 Kayooh Project. Dibuat untuk kebebasan mengayuh. <span style="color: var(--primary-color); font-weight: 800;">#KayoohTerus</span><br>
+        <div style="margin-top: 8px;">
+            💻 <a href="https://github.com/jeannesbryan/kayooh" target="_blank">GitHub Repository</a>
+        </div>
     </div>
 </div>
 

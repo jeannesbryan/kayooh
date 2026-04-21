@@ -464,7 +464,7 @@ try {
                     btnStd.textContent = "📸 SHARE MAP";
                     btnMin.textContent = "✨ SHARE STATS";
                 });
-            }, 400); 
+            }, 1500); 
         }, 100); 
     }
 </script>

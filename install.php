@@ -90,7 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($pesan_error)) {
 
     <div class="centered-container">
         <div class="box">
-            <div class="brand-logo">KAYOOH</div>
+            <img src="assets/kayooh.png" alt="Kayooh" style="height: 45px; margin-bottom: 10px;">
             <p class="subtitle" style="color:var(--text-color); opacity:0.7; font-size:12px;">Inisialisasi sistem pelacakan mandiri Anda</p>
             
             <?php if($pesan_error): ?>
