@@ -115,7 +115,7 @@
             margin-top: 60px;
             text-align: center;
             font-size: 13px;
-            color: #000000; /* Warna diubah jadi hitam pekat */
+            color: #000000;
             border-top: 1px solid #edf2f7;
             padding-top: 30px;
             font-weight: 500;
@@ -128,6 +128,32 @@
         .footer a:hover {
             text-decoration: underline;
         }
+
+        /* PERBAIKAN RESPONSIVE UNTUK LAYAR HP */
+        @media (max-width: 768px) {
+            body {
+                padding: 0; /* Hilangkan padding luar agar tidak ada border abu-abu */
+                background-color: var(--white); /* Jadikan background utama putih */
+            }
+            .container {
+                padding: 30px 20px; /* Kurangi padding dalam agar teks lebih lebar */
+                border-radius: 0; /* Hilangkan lengkungan di HP */
+                box-shadow: none; /* Hilangkan bayangan di HP */
+            }
+            .header {
+                padding-bottom: 20px;
+                margin-bottom: 20px;
+            }
+            .tagline {
+                font-size: 16px;
+            }
+            h2 {
+                margin-top: 40px;
+            }
+            .pro-con-grid {
+                grid-template-columns: 1fr; /* Paksa 1 kolom di HP */
+            }
+        }
     </style>
 </head>
 <body>
@@ -135,30 +161,33 @@
 <div class="container">
     <div class="header">
         <img src="assets/kayooh.png" alt="Kayooh" class="logo-img">
-        <p class="tagline">Gowes tenang, data aman. Ringan di memori, fokus di kemudi.</p>
+        <p class="tagline">Gowes tenang, data aman. Ringan di memori, canggih di telemetri.</p>
         <div class="hashtag">#KayoohTerus</div>
     </div>
 
     <h2>Filosofi & Nilai Jual</h2>
-    <p><b>Kayooh</b> adalah aplikasi pelacak gowes mandiri (Self-Hosted) yang memberikan kedaulatan penuh atas data pribadi Anda. Di dunia di mana data adalah komoditas, Kayooh memastikan jejak rute dan statistik Anda tetap menjadi rahasia Anda, tersimpan aman di server pribadi Anda tanpa intervensi pihak ketiga.</p>
+    <p><b>Kayooh v2.0</b> adalah aplikasi pelacak gowes mandiri (Self-Hosted) yang memberikan kedaulatan penuh atas data pribadi Anda. Di dunia di mana data adalah komoditas, Kayooh memastikan jejak rute dan statistik Anda tetap menjadi rahasia Anda, tersimpan aman di server pribadi Anda dengan akurasi sekelas perangkat profesional.</p>
 
-    <h2>Analisis Performa</h2>
+    <h2>Fitur Unggulan</h2>
     <div class="pro-con-grid">
         <div class="box-list pro-box">
-            <h4>✅ Kelebihan</h4>
+            <h4>✅ Kelebihan v2.0</h4>
             <ul>
-                <li><b>Privasi Mutlak</b>: Data tersimpan di server Anda sendiri.</li>
-                <li><b>Offline Mode (PWA)</b>: PWA tetap stabil meskipun sinyal internet hilang.</li>
-                <li><b>Smart Auto-Pause</b>: Timer berhenti otomatis saat kecepatan nol.</li>
-                <li><b>Template Flexing</b>: Desain share statistik transparan yang elegan.</li>
+                <li><b>Privasi Mutlak</b>: Data tersimpan di server Anda sendiri tanpa pihak ketiga.</li>
+                <li><b>Map Matching OSRM</b>: Garis rute secara cerdas "menempel" rapi di jalan raya.</li>
+                <li><b>Black Box Auto-Save</b>: Memori aman! Data gowes tidak hilang walau browser ter-reload.</li>
+                <li><b>Stopwatch & Auto-Pause</b>: Timer presisi tinggi berbasis stempel waktu (Timestamp).</li>
+                <li><b>Telemetri Suhu Udara</b>: Terintegrasi dengan Open-Meteo API.</li>
+                <li><b>Anti Brute-Force</b>: Gerbang login dilengkapi Database IP Blocker.</li>
+                <li><b>Template Flexing</b>: Ekspor gambar statistik transparan untuk IG Story.</li>
             </ul>
         </div>
         <div class="box-list con-box">
-            <h4>⚠️ Kekurangan</h4>
+            <h4>⚠️ Catatan Penggunaan</h4>
             <ul>
-                <li><b>Layar Harus Menyala</b>: Browser membutuhkan layar aktif agar GPS tidak mati.</li>
-                <li><b>Wajib HTTPS</b>: Sensor lokasi membutuhkan sertifikat SSL aktif.</li>
-                <li><b>Setup Teknis</b>: Membutuhkan pengetahuan dasar manajemen web server.</li>
+                <li><b>Layar Harus Menyala</b>: Menggunakan Wake Lock API, HP Anda akan tetap menyala selama merekam.</li>
+                <li><b>Wajib HTTPS</b>: Sensor lokasi membutuhkan sertifikat SSL aktif di domain Anda.</li>
+                <li><b>Setup Teknis</b>: Membutuhkan pengetahuan dasar manajemen web server/hosting.</li>
             </ul>
         </div>
     </div>

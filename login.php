@@ -1,5 +1,5 @@
 <?php
-// login.php - Pintu Masuk Kayooh (Secure + Rate Limiting)
+// login.php - Pintu Masuk Kayooh (Secure + Database IP Rate Limiting)
 session_start();
 
 $lock_file = __DIR__ . '/install.lock';
@@ -19,21 +19,40 @@ if (isset($_SESSION['is_logged_in']) && $_SESSION['is_logged_in'] === true) {
 
 $pesan_error = '';
 
-// Security: Inisialisasi Rate Limiting
-if (!isset($_SESSION['login_attempts'])) $_SESSION['login_attempts'] = 0;
-if (!isset($_SESSION['last_attempt_time'])) $_SESSION['last_attempt_time'] = time();
+// Helper Security: Mendapatkan IP asli pengunjung (Tembus Proxy/Cloudflare)
+function getClientIP() {
+    if (isset($_SERVER["HTTP_CF_CONNECTING_IP"])) {
+        return $_SERVER["HTTP_CF_CONNECTING_IP"];
+    }
+    if (isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+        $ipList = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
+        return trim($ipList[0]);
+    }
+    return $_SERVER['REMOTE_ADDR'] ?? 'UNKNOWN';
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Security: Cek jika mencoba login >= 5 kali dalam waktu kurang dari 5 menit (300 detik)
-    if ($_SESSION['login_attempts'] >= 5 && (time() - $_SESSION['last_attempt_time']) < 300) {
-        $pesan_error = "Sistem dikunci sementara wak! Coba lagi dalam 5 menit.";
-    } else {
-        $email = filter_var(trim($_POST['email']), FILTER_SANITIZE_EMAIL);
-        $password = $_POST['password'];
+    $ip_address = getClientIP();
+    
+    try {
+        $pdo = new PDO("sqlite:" . $db_file);
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-        try {
-            $pdo = new PDO("sqlite:" . $db_file);
-            $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        // Security 1: Sapu bersih log IP yang sudah kadaluarsa (lebih dari 5 menit / 300 detik)
+        $pdo->exec("DELETE FROM login_logs WHERE last_attempt < " . (time() - 300));
+
+        // Security 2: Cek status IP saat ini di database
+        $stmt_check = $pdo->prepare("SELECT attempts FROM login_logs WHERE ip_address = ?");
+        $stmt_check->execute([$ip_address]);
+        $log = $stmt_check->fetch();
+
+        // Jika percobaan sudah 5 kali atau lebih, langsung Banned!
+        if ($log && $log['attempts'] >= 5) {
+            $pesan_error = "Sistem dikunci sementara wak! Terlalu banyak percobaan gagal dari IP jaringan Anda. Coba lagi dalam 5 menit.";
+        } else {
+            // Jika IP masih aman, proses verifikasi email & password
+            $email = filter_var(trim($_POST['email']), FILTER_SANITIZE_EMAIL);
+            $password = $_POST['password'];
 
             $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ?");
             $stmt->execute([$email]);
@@ -41,24 +60,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Verifikasi password
             if ($user && password_verify($password, $user['password'])) {
+                // Berhasil login: Hapus catatan dosa (IP log)
+                $stmt_clear = $pdo->prepare("DELETE FROM login_logs WHERE ip_address = ?");
+                $stmt_clear->execute([$ip_address]);
+
                 // Mencegah Session Fixation Attack
                 session_regenerate_id(true); 
                 
                 $_SESSION['is_logged_in'] = true;
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['user_email'] = $user['email'];
-                $_SESSION['login_attempts'] = 0; // Reset counter saat berhasil masuk
                 header('Location: dashboard.php');
                 exit;
             } else {
-                // Catat percobaan gagal
-                $_SESSION['login_attempts']++;
-                $_SESSION['last_attempt_time'] = time();
+                // Gagal login: Catat IP dan tambah jumlah percobaan
+                if ($log) {
+                    // Update jumlah percobaan jika IP sudah pernah salah sebelumnya
+                    $stmt_fail = $pdo->prepare("UPDATE login_logs SET attempts = attempts + 1, last_attempt = ? WHERE ip_address = ?");
+                    $stmt_fail->execute([time(), $ip_address]);
+                } else {
+                    // Masukkan IP baru yang baru pertama kali salah
+                    $stmt_fail = $pdo->prepare("INSERT INTO login_logs (ip_address, attempts, last_attempt) VALUES (?, 1, ?)");
+                    $stmt_fail->execute([$ip_address, time()]);
+                }
                 $pesan_error = "Email atau password salah, wak!";
             }
-        } catch (PDOException $e) {
-            $pesan_error = "Masalah koneksi database: " . $e->getMessage();
         }
+    } catch (PDOException $e) {
+        $pesan_error = "Masalah koneksi database: " . $e->getMessage();
     }
 }
 ?>

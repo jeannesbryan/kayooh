@@ -49,9 +49,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($pesan_error)) {
                     average_speed REAL,
                     max_speed REAL,
                     total_elevation_gain REAL,
+                    avg_temp REAL,
                     start_date TEXT NOT NULL,
                     polyline TEXT,
                     source TEXT DEFAULT 'KAYOOH'
+                );
+                CREATE TABLE IF NOT EXISTS login_logs (
+                    ip_address TEXT PRIMARY KEY,
+                    attempts INTEGER DEFAULT 1,
+                    last_attempt INTEGER NOT NULL
                 );
             ");
 

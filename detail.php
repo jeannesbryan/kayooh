@@ -252,6 +252,10 @@ try {
                 <label>Elevasi</label>
                 <span><?= number_format($data['total_elevation_gain'], 0) ?> <small>m</small></span>
             </div>
+            <div class="detail-card" style="grid-column: span 2;">
+                <label>Suhu Rata-rata</label>
+                <span><?= (isset($data['avg_temp']) && $data['avg_temp'] > 0) ? number_format($data['avg_temp'], 1) . ' <small>&deg;C</small>' : '-- <small>&deg;C</small>' ?></span>
+            </div>
         </div>
     </div>
     <div class="action-grid">
@@ -285,6 +289,11 @@ try {
     <div class="minimal-item">
         <div class="minimal-label">Kecepatan rata-rata</div>
         <div class="minimal-value"><?= str_replace('.', ',', number_format($data['average_speed'], 1)) ?> <small>kpj</small></div>
+    </div>
+
+    <div class="minimal-item">
+        <div class="minimal-label">Suhu</div>
+        <div class="minimal-value"><?= (isset($data['avg_temp']) && $data['avg_temp'] > 0) ? str_replace('.', ',', number_format($data['avg_temp'], 1)) . ' <small>&deg;C</small>' : '-- <small>&deg;C</small>' ?></div>
     </div>
 
     <div id="minimal-map"></div>

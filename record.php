@@ -1,5 +1,5 @@
 <?php
-// record.php - GPS Tracker Kayooh (Full Route, Elevation API, Auto-Pause, Security, Dark Mode & Wake Lock)
+// record.php - GPS Tracker Kayooh (Full Route, Elevation, Map Matching OSRM, Auto-Pause, Security, Dark Mode, Wake Lock, Black Box & Temp)
 session_start();
 $db_file = __DIR__ . '/kayooh.sqlite';
 
@@ -38,7 +38,6 @@ function encodePolyline($points) {
 function calculateElevationGain($points) {
     if (empty($points)) return 0;
 
-    // Downsampling: Ambil maksimal 50 titik sampel agar URL API tidak terlalu panjang
     $step = max(1, floor(count($points) / 50));
     $sampledLats = []; $sampledLngs = [];
 
@@ -46,7 +45,6 @@ function calculateElevationGain($points) {
         $sampledLats[] = round($points[$i][0], 5);
         $sampledLngs[] = round($points[$i][1], 5);
     }
-    // Pastikan titik terakhir selalu ikut
     if (end($sampledLats) != round(end($points)[0], 5)) {
         $sampledLats[] = round(end($points)[0], 5);
         $sampledLngs[] = round(end($points)[1], 5);
@@ -68,7 +66,7 @@ function calculateElevationGain($points) {
             $elevations = $data['elevation'];
             for ($i = 1; $i < count($elevations); $i++) {
                 $diff = $elevations[$i] - $elevations[$i - 1];
-                if ($diff > 0) { // Hanya hitung tanjakan (positif)
+                if ($diff > 0) { 
                     $gain += $diff;
                 }
             }
@@ -77,13 +75,58 @@ function calculateElevationGain($points) {
     return round($gain);
 }
 
+// ==========================================
+// FUNGSI 3: Map Matching via OSRM API
+// ==========================================
+function matchRouteOSRM($points) {
+    if (count($points) < 2) return $points;
+
+    // Batasi titik agar tidak ditolak oleh API OSRM (Max ~100 koordinat)
+    $step = max(1, ceil(count($points) / 90));
+    $sampled = [];
+    for ($i = 0; $i < count($points); $i += $step) {
+        // Format OSRM: lon,lat
+        $sampled[] = $points[$i][1] . ',' . $points[$i][0];
+    }
+    if (end($sampled) !== end($points)[1] . ',' . end($points)[0]) {
+        $sampled[] = end($points)[1] . ',' . end($points)[0];
+    }
+
+    $coords_string = implode(';', $sampled);
+    $url = "https://router.project-osrm.org/match/v1/cycling/" . $coords_string . "?geometries=geojson&overview=full";
+
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_USERAGENT, 'KayoohTracker/2.0'); // Identitas aplikasi (Wajib untuk OSRM)
+    $response = curl_exec($ch);
+    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($http_code == 200 && $response) {
+        $data = json_decode($response, true);
+        if (isset($data['matchings']) && count($data['matchings']) > 0) {
+            $matched_points = [];
+            foreach ($data['matchings'] as $matching) {
+                if (isset($matching['geometry']['coordinates'])) {
+                    foreach ($matching['geometry']['coordinates'] as $coord) {
+                        $matched_points[] = [$coord[1], $coord[0]]; // Kembalikan ke format lat,lon
+                    }
+                }
+            }
+            if (count($matched_points) > 0) return $matched_points;
+        }
+    }
+    return $points; // Fallback: Jika API down atau sinyal jelek, gunakan data mentah
+}
+
 // Proses Simpan Data via AJAX
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['distance'])) {
     try {
         $pdo = new PDO("sqlite:" . $db_file);
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-        // FITUR BENTENG KEAMANAN: Type Casting ketat dan sanitasi array
         $raw_points = json_decode($_POST['polyline'], true);
         if (!is_array($raw_points)) $raw_points = [];
         
@@ -91,17 +134,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['distance'])) {
         $moving_time = (int)$_POST['moving_time'];
         $avg_speed = (float)$_POST['avg_speed'];
         $max_speed = (float)$_POST['max_speed'];
+        $avg_temp = isset($_POST['avg_temp']) ? (float)$_POST['avg_temp'] : 0; 
 
-        // Eksekusi Poin 7 & 8
-        $encoded_polyline = encodePolyline($raw_points);
-        $elevation_gain = calculateElevationGain($raw_points);
+        // KOREKSI RUTE: Tempelkan ke jalan raya (Snap to Road)
+        $final_points = matchRouteOSRM($raw_points);
+
+        $encoded_polyline = encodePolyline($final_points);
+        // Elevasi dihitung berdasarkan titik yang sudah dirapikan
+        $elevation_gain = calculateElevationGain($final_points); 
 
         $stmt = $pdo->prepare("INSERT INTO rides (
             name, distance, moving_time, average_speed, max_speed, 
-            total_elevation_gain, start_date, polyline, source
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'KAYOOH')");
+            total_elevation_gain, avg_temp, start_date, polyline, source
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'KAYOOH')");
 
-        $name = "Gowes " . date('d/m/Y H:i'); // Penamaan rute otomatis & aman
+        $name = "Gowes " . date('d/m/Y H:i');
         $stmt->execute([
             $name,
             $distance,
@@ -109,6 +156,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['distance'])) {
             $avg_speed,
             $max_speed,
             $elevation_gain,
+            $avg_temp,
             date('Y-m-d H:i:s'),
             $encoded_polyline
         ]);
@@ -141,7 +189,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['distance'])) {
         <img src="assets/kayooh.png" alt="Kayooh" class="nav-logo">
         <div class="header-actions">
             <button onclick="toggleTheme()" class="theme-toggle" id="theme-icon">🌙</button>
-            <a href="dashboard.php" class="logout-link" onclick="return confirm('Batalkan rekaman ini?')">BATAL</a>
+            <a href="dashboard.php" class="logout-link" onclick="if(confirm('Batalkan rekaman ini? Data akan hilang selamanya.')) { localStorage.removeItem('kayooh_backup'); return true; } return false;">BATAL</a>
         </div>
     </div>
 
@@ -168,21 +216,93 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['distance'])) {
 <script>
 let watchId = null;
 let timerInterval = null;
-let totalDistance = 0; // dalam km
-let routePath = []; // Array untuk menyimpan titik koordinat
+let totalDistance = 0;
+let routePath = []; 
 let lastCoord = null;
 let maxSpeed = 0;
 let isRecording = false;
-let secondsElapsed = 0;
-let wakeLock = null; // Variabel penahan layar
-let isAutoPaused = false; // FITUR AUTO-PAUSE
+let wakeLock = null; 
+let isAutoPaused = false;
+
+// Variabel Waktu Presisi (Timestamp)
+let secondsElapsed = 0; 
+let accumulatedTimeMs = 0; 
+let currentStartTimeMs = 0; 
+
+// Variabel Suhu
+let startTemp = null; 
+let endTemp = null;
 
 const btnMain = document.getElementById('btn-main');
 const btnSave = document.getElementById('btn-save');
 const gpsInfo = document.getElementById('gps-info');
 
 // ---------------------------------------------------------
-// FUNGSI TOGGLE TEMA
+// FUNGSI FETCH SUHU (API OPEN-METEO)
+// ---------------------------------------------------------
+async function fetchTemperature(lat, lon) {
+    try {
+        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
+        const data = await res.json();
+        return data.current_weather ? data.current_weather.temperature : null;
+    } catch (e) {
+        console.error("Gagal ambil suhu:", e);
+        return null;
+    }
+}
+
+// ---------------------------------------------------------
+// FUNGSI BLACK BOX (AUTO-SAVE)
+// ---------------------------------------------------------
+function saveBlackBox() {
+    if (routePath.length > 0) {
+        localStorage.setItem('kayooh_backup', JSON.stringify({
+            distance: totalDistance,
+            route: routePath,
+            time: secondsElapsed,
+            maxSpeed: maxSpeed,
+            lastCoord: lastCoord,
+            startTemp: startTemp 
+        }));
+    }
+}
+
+function restoreBlackBox() {
+    const backup = localStorage.getItem('kayooh_backup');
+    if (backup) {
+        try {
+            const data = JSON.parse(backup);
+            if (data.route && data.route.length > 0) {
+                totalDistance = data.distance || 0;
+                routePath = data.route || [];
+                secondsElapsed = data.time || 0;
+                maxSpeed = data.maxSpeed || 0;
+                lastCoord = data.lastCoord || null;
+                startTemp = data.startTemp !== undefined ? data.startTemp : null; 
+
+                accumulatedTimeMs = secondsElapsed * 1000;
+                currentStartTimeMs = 0; 
+
+                document.getElementById('display-distance').textContent = totalDistance.toFixed(2);
+                const h = Math.floor(secondsElapsed / 3600).toString().padStart(2, '0');
+                const m = Math.floor((secondsElapsed % 3600) / 60).toString().padStart(2, '0');
+                const s = (secondsElapsed % 60).toString().padStart(2, '0');
+                document.getElementById('display-time').textContent = `${h}:${m}:${s}`;
+                document.getElementById('display-speed').textContent = "0.0";
+
+                gpsInfo.innerHTML = '<span style="color: #e67e22; font-weight: bold;">⚠️ SESI DIPULIHKAN (BLACK BOX)</span>';
+                btnMain.textContent = "▶️ LANJUTKAN RIDE";
+                btnMain.classList.replace('btn-stop', 'btn-start');
+                btnSave.style.display = 'flex';
+            }
+        } catch(e) {
+            console.error("Gagal memulihkan Black Box", e);
+        }
+    }
+}
+
+// ---------------------------------------------------------
+// FUNGSI TOGGLE TEMA & INISIALISASI
 // ---------------------------------------------------------
 function toggleTheme() {
     document.body.classList.toggle('dark-mode');
@@ -190,11 +310,13 @@ function toggleTheme() {
     localStorage.setItem('theme', isDark ? 'dark' : 'light');
     document.getElementById('theme-icon').textContent = isDark ? '☀️' : '🌙';
 }
-window.onload = () => { 
+
+window.addEventListener('DOMContentLoaded', () => { 
     if(localStorage.getItem('theme') === 'dark') {
         document.getElementById('theme-icon').textContent = '☀️';
     }
-}
+    restoreBlackBox(); 
+});
 
 // ---------------------------------------------------------
 // FUNGSI WAKE LOCK (MENCEGAH LAYAR MATI)
@@ -203,15 +325,9 @@ async function requestWakeLock() {
     if ('wakeLock' in navigator) {
         try {
             wakeLock = await navigator.wakeLock.request('screen');
-            console.log('Wake Lock aktif! Layar tidak akan mati.');
-            wakeLock.addEventListener('release', () => {
-                console.log('Wake Lock dilepas oleh sistem.');
-            });
         } catch (err) {
             console.error('Gagal menahan layar:', err.message);
         }
-    } else {
-        console.warn('Browser ini tidak mendukung Wake Lock API.');
     }
 }
 
@@ -222,7 +338,6 @@ function releaseWakeLock() {
     }
 }
 
-// Tangkap event jika browser di-minimize lalu dibuka lagi
 document.addEventListener('visibilitychange', async () => {
     if (isRecording && wakeLock !== null && document.visibilityState === 'visible') {
         await requestWakeLock();
@@ -230,7 +345,7 @@ document.addEventListener('visibilitychange', async () => {
 });
 
 // ---------------------------------------------------------
-// FUNGSI UTAMA TRACKING (DENGAN SMART AUTO-PAUSE)
+// FUNGSI UTAMA TRACKING (DENGAN SMART AUTO-PAUSE & TIMESTAMP TIMER)
 // ---------------------------------------------------------
 function calculateDistance(lat1, lon1, lat2, lon2) {
     const R = 6371; 
@@ -244,13 +359,22 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 }
 
 function updateTimer() {
-    // FITUR AUTO-PAUSE: Timer hanya dihitung jika sepeda sedang berjalan
-    if (!isAutoPaused && isRecording) {
-        secondsElapsed++;
+    if (isRecording) {
+        let totalMs = accumulatedTimeMs;
+        if (!isAutoPaused && currentStartTimeMs > 0) {
+            totalMs += (Date.now() - currentStartTimeMs);
+        }
+        
+        secondsElapsed = Math.floor(totalMs / 1000);
+        
         const h = Math.floor(secondsElapsed / 3600).toString().padStart(2, '0');
         const m = Math.floor((secondsElapsed % 3600) / 60).toString().padStart(2, '0');
         const s = (secondsElapsed % 60).toString().padStart(2, '0');
         document.getElementById('display-time').textContent = `${h}:${m}:${s}`;
+        
+        if (!isAutoPaused) {
+            saveBlackBox(); 
+        }
     }
 }
 
@@ -262,55 +386,62 @@ function startTracking() {
 
     isRecording = true;
     isAutoPaused = false;
+    currentStartTimeMs = Date.now(); 
     
-    // Aktifkan penahan layar!
     requestWakeLock();
 
     btnMain.textContent = "⬜ STOP RIDE";
     btnMain.classList.replace('btn-start', 'btn-stop');
     gpsInfo.innerHTML = '<span class="gps-active">● GPS AKTIF</span>';
+    btnSave.style.display = 'none';
     
-    timerInterval = setInterval(updateTimer, 1000);
+    timerInterval = setInterval(updateTimer, 100);
 
     watchId = navigator.geolocation.watchPosition((pos) => {
         const { latitude, longitude, speed, accuracy } = pos.coords;
         
-        // Hanya simpan titik jika akurasinya cukup bagus (< 30 meter)
         if (accuracy < 30) {
-            // Update Kecepatan Real-time (m/s ke km/h)
             const currentSpeed = speed ? (speed * 3.6) : 0;
             document.getElementById('display-speed').textContent = currentSpeed.toFixed(1);
             if (currentSpeed > maxSpeed) maxSpeed = currentSpeed;
 
-            // LOGIKA SMART AUTO-PAUSE
+            if (startTemp === null) {
+                startTemp = 'fetching'; 
+                fetchTemperature(latitude, longitude).then(temp => {
+                    startTemp = temp;
+                    saveBlackBox();
+                });
+            }
+
             if (currentSpeed < 1.5) { 
-                // Jika kecepatan sangat rendah (< 1.5 km/h), anggap sedang berhenti / lampu merah
                 if (!isAutoPaused && isRecording) {
                     isAutoPaused = true;
+                    if (currentStartTimeMs > 0) {
+                        accumulatedTimeMs += (Date.now() - currentStartTimeMs);
+                        currentStartTimeMs = 0;
+                    }
                     gpsInfo.innerHTML = '<span style="color: #e67e22; font-weight: bold;">⏸️ AUTO-PAUSED</span>';
                 }
             } else {
-                // Jika mulai bergerak kembali
                 if (isAutoPaused && isRecording) {
                     isAutoPaused = false;
+                    currentStartTimeMs = Date.now();
                     gpsInfo.innerHTML = '<span class="gps-active">● RESUMED</span>';
                 }
 
-                // Update Jarak dan Simpan Titik Koordinat (hanya jika bergerak)
                 if (lastCoord) {
                     const dist = calculateDistance(lastCoord.lat, lastCoord.lon, latitude, longitude);
-                    // Filter noise: Turunkan jadi 2 meter (0.002 km)
                     if (dist > 0.002) {
                         totalDistance += dist;
                         document.getElementById('display-distance').textContent = totalDistance.toFixed(2);
-                        routePath.push([latitude, longitude]); // Simpan jejak
-                        // Pindahkan update lastCoord ke DALAM sini!
+                        routePath.push([latitude, longitude]); 
                         lastCoord = { lat: latitude, lon: longitude }; 
+                        saveBlackBox(); 
                     }
                 } else {
-                    // Titik awal
                     routePath.push([latitude, longitude]);
                     lastCoord = { lat: latitude, lon: longitude };
+                    saveBlackBox(); 
                 }
             }
         }
@@ -328,8 +459,13 @@ function stopTracking() {
     clearInterval(timerInterval);
     navigator.geolocation.clearWatch(watchId);
     
-    // Lepaskan penahan layar
     releaseWakeLock();
+    
+    if (!isAutoPaused && currentStartTimeMs > 0) {
+        accumulatedTimeMs += (Date.now() - currentStartTimeMs);
+        currentStartTimeMs = 0;
+    }
+    secondsElapsed = Math.floor(accumulatedTimeMs / 1000); 
     
     btnMain.style.display = 'none';
     btnSave.style.display = 'flex';
@@ -341,10 +477,25 @@ btnMain.addEventListener('click', () => {
     else stopTracking();
 });
 
-btnSave.addEventListener('click', () => {
-    btnSave.textContent = "⏳ MENGHITUNG ELEVASI...";
+btnSave.addEventListener('click', async () => {
+    btnSave.textContent = "⏳ MENGOREKSI RUTE & SUHU...";
     btnSave.style.opacity = "0.7";
     btnSave.style.pointerEvents = "none";
+
+    // AMBIL SUHU AKHIR
+    if (lastCoord) {
+        endTemp = await fetchTemperature(lastCoord.lat, lastCoord.lon);
+    }
+
+    // HITUNG SUHU RATA-RATA
+    let finalAvgTemp = 0;
+    if (typeof startTemp === 'number' && typeof endTemp === 'number') {
+        finalAvgTemp = (startTemp + endTemp) / 2;
+    } else if (typeof startTemp === 'number') {
+        finalAvgTemp = startTemp;
+    } else if (typeof endTemp === 'number') {
+        finalAvgTemp = endTemp;
+    }
 
     const avgSpeed = secondsElapsed > 0 ? (totalDistance / (secondsElapsed / 3600)) : 0;
     
@@ -353,6 +504,7 @@ btnSave.addEventListener('click', () => {
     formData.append('moving_time', secondsElapsed);
     formData.append('avg_speed', avgSpeed);
     formData.append('max_speed', maxSpeed);
+    formData.append('avg_temp', finalAvgTemp.toFixed(1)); 
     formData.append('polyline', JSON.stringify(routePath));
 
     fetch('record.php', {
@@ -362,6 +514,7 @@ btnSave.addEventListener('click', () => {
     .then(res => res.json())
     .then(data => {
         if (data.status === 'success') {
+            localStorage.removeItem('kayooh_backup'); 
             window.location.href = 'dashboard.php';
         } else {
             alert("Gagal simpan: " + data.message);
