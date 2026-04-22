@@ -132,13 +132,13 @@
         /* PERBAIKAN RESPONSIVE UNTUK LAYAR HP */
         @media (max-width: 768px) {
             body {
-                padding: 0; /* Hilangkan padding luar agar tidak ada border abu-abu */
-                background-color: var(--white); /* Jadikan background utama putih */
+                padding: 0;
+                background-color: var(--white);
             }
             .container {
-                padding: 30px 20px; /* Kurangi padding dalam agar teks lebih lebar */
-                border-radius: 0; /* Hilangkan lengkungan di HP */
-                box-shadow: none; /* Hilangkan bayangan di HP */
+                padding: 30px 20px;
+                border-radius: 0;
+                box-shadow: none;
             }
             .header {
                 padding-bottom: 20px;
@@ -151,7 +151,7 @@
                 margin-top: 40px;
             }
             .pro-con-grid {
-                grid-template-columns: 1fr; /* Paksa 1 kolom di HP */
+                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -166,31 +166,48 @@
     </div>
 
     <h2>Filosofi & Nilai Jual</h2>
-    <p><b>Kayooh v2.0</b> adalah aplikasi pelacak gowes mandiri (Self-Hosted) yang memberikan kedaulatan penuh atas data pribadi Anda. Di dunia di mana data adalah komoditas, Kayooh memastikan jejak rute dan statistik Anda tetap menjadi rahasia Anda, tersimpan aman di server pribadi Anda dengan akurasi sekelas perangkat profesional.</p>
+    <p><b>Kayooh</b> adalah aplikasi pelacak gowes mandiri (Self-Hosted) yang memberikan kedaulatan penuh atas data pribadi Anda. Di dunia di mana data adalah komoditas, Kayooh memastikan jejak rute dan statistik Anda tetap menjadi rahasia Anda, tersimpan aman di server pribadi Anda dengan akurasi sekelas perangkat profesional.</p>
 
     <h2>Fitur Unggulan</h2>
     <div class="pro-con-grid">
         <div class="box-list pro-box">
-            <h4>✅ Kelebihan v2.0</h4>
+            <h4>✅ Kelebihan Utama</h4>
             <ul>
                 <li><b>Privasi Mutlak</b>: Data tersimpan di server Anda sendiri tanpa pihak ketiga.</li>
                 <li><b>Map Matching OSRM</b>: Garis rute secara cerdas "menempel" rapi di jalan raya.</li>
                 <li><b>Black Box Auto-Save</b>: Memori aman! Data gowes tidak hilang walau browser ter-reload.</li>
                 <li><b>Stopwatch & Auto-Pause</b>: Timer presisi tinggi berbasis stempel waktu (Timestamp).</li>
-                <li><b>Telemetri Suhu Udara</b>: Terintegrasi dengan Open-Meteo API.</li>
+                <li><b>Bebas Biaya Langganan</b>: Semua fitur analitik tersedia gratis 100% selamanya tanpa <i>paywall</i>.</li>
+                <li><b>Strava Sync</b>: Impor otomatis seluruh riwayat gowes historis Anda dari Strava.</li>
+                <li><b>Ekspor GPX Universal</b>: Unduh rute Anda kapan saja untuk dipindah ke platform lain.</li>
+                <li><b>Telemetri Suhu Udara</b>: Analisis cuaca otomatis via Open-Meteo API.</li>
                 <li><b>Anti Brute-Force</b>: Gerbang login dilengkapi Database IP Blocker.</li>
-                <li><b>Template Flexing</b>: Ekspor gambar statistik transparan untuk IG Story.</li>
+                <li><b>Night Ride Mode</b>: Tema gelap otomatis yang nyaman dan peta anti-silau.</li>
+                <li><b>Progressive Web App (PWA)</b>: Install ke HP & Offline Mode untuk hemat sinyal.</li>
+                <li><b>Template Flexing</b>: Ekspor gambar statistik transparan untuk sosial media.</li>
             </ul>
         </div>
         <div class="box-list con-box">
-            <h4>⚠️ Catatan Penggunaan</h4>
+            <h4>⚠️ Karakteristik & Catatan Penggunaan</h4>
             <ul>
-                <li><b>Layar Harus Menyala</b>: Menggunakan Wake Lock API, HP Anda akan tetap menyala selama merekam.</li>
-                <li><b>Wajib HTTPS</b>: Sensor lokasi membutuhkan sertifikat SSL aktif di domain Anda.</li>
-                <li><b>Setup Teknis</b>: Membutuhkan pengetahuan dasar manajemen web server/hosting.</li>
+                <li><b>Konsumsi Baterai</b>: Menggunakan fitur Wake Lock API agar GPS tidak tertidur, layar HP akan terus menyala sehingga memakan daya lebih besar dibanding aplikasi <i>native</i>.</li>
+                <li><b>Ketergantungan Internet</b>: Meski bisa merekam <i>offline</i>, fitur tingkat lanjut (Suhu, Elevasi, dan Map Matching) mewajibkan koneksi internet aktif saat akan menyimpan aktivitas.</li>
+                <li><b>Akurasi Hardware</b>: Kualitas pelacakan murni bergantung pada kualitas sensor GPS HP Anda dan kondisi rintangan lingkungan (pepohonan/gedung tinggi).</li>
+                <li><b>Tanggung Jawab Data</b>: Karena ini sistem <i>self-hosted</i> tanpa cloud sentral, pencadangan (<i>backup</i>) file database SQLite adalah tanggung jawab Anda sepenuhnya.</li>
+                <li><b>Wajib HTTPS</b>: Keamanan sensor lokasi browser modern mewajibkan sertifikat SSL aktif di domain Anda.</li>
+                <li><b>Setup Teknis</b>: Membutuhkan pengetahuan dasar tentang manajemen <i>web server</i> atau <i>hosting</i>.</li>
             </ul>
         </div>
     </div>
+
+    <h2>Transparansi & API Eksternal</h2>
+    <p>Demi menjaga performa kelas atas tanpa mengorbankan privasi, Kayooh v2.0 mengandalkan beberapa layanan publik yang bersifat terbuka (Open Source) dan anonim. Sistem tidak pernah mengirimkan data identitas pribadi Anda (seperti email atau kata sandi) ke pihak-pihak ini:</p>
+    <ul>
+        <li><b>Open-Meteo API</b>: Digunakan murni untuk menghitung total elevasi bukit dan mengambil sampel suhu udara setiap 15 menit berjalan.</li>
+        <li><b>OSRM (Open Source Routing Machine) API</b>: Berperan sebagai "tukang setrika" yang menempelkan titik-titik koordinat GPS Anda agar rapi mengikuti alur aspal di peta.</li>
+        <li><b>OpenStreetMap (OSM)</b>: Dimuat melalui <i>library</i> Leaflet.js sebagai kanvas visual untuk menampilkan peta gowes Anda secara estetik.</li>
+        <li><b>Strava API</b>: Digunakan hanya jika Anda memilih untuk melakukan "Sync Strava" secara sukarela guna menyedot riwayat gowes lama Anda.</li>
+    </ul>
 
     <h2>Panduan Instalasi Server</h2>
     <ol>

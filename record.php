@@ -1,5 +1,5 @@
 <?php
-// record.php - GPS Tracker Kayooh (Full Route, Elevation, Map Matching OSRM, Auto-Pause, Security, Dark Mode, Wake Lock, Black Box & Temp)
+// record.php - GPS Tracker Kayooh (Full Route, Elevation, Map Matching OSRM, Auto-Pause, Security, Dark Mode, Wake Lock, Black Box & Interval Temp)
 session_start();
 $db_file = __DIR__ . '/kayooh.sqlite';
 
@@ -229,9 +229,10 @@ let secondsElapsed = 0;
 let accumulatedTimeMs = 0; 
 let currentStartTimeMs = 0; 
 
-// Variabel Suhu
-let startTemp = null; 
-let endTemp = null;
+// Variabel Suhu (Sampling Interval 15 Menit)
+let tempLog = []; 
+let lastTempFetchTime = 0;
+let isFetchingTemp = false; // Mencegah API ketembak dobel
 
 const btnMain = document.getElementById('btn-main');
 const btnSave = document.getElementById('btn-save');
@@ -262,7 +263,8 @@ function saveBlackBox() {
             time: secondsElapsed,
             maxSpeed: maxSpeed,
             lastCoord: lastCoord,
-            startTemp: startTemp 
+            tempLog: tempLog,
+            lastTempFetchTime: lastTempFetchTime
         }));
     }
 }
@@ -278,7 +280,10 @@ function restoreBlackBox() {
                 secondsElapsed = data.time || 0;
                 maxSpeed = data.maxSpeed || 0;
                 lastCoord = data.lastCoord || null;
-                startTemp = data.startTemp !== undefined ? data.startTemp : null; 
+                
+                // Pemulihan Log Suhu
+                tempLog = data.tempLog || []; 
+                lastTempFetchTime = data.lastTempFetchTime || 0;
 
                 accumulatedTimeMs = secondsElapsed * 1000;
                 currentStartTimeMs = 0; 
@@ -405,12 +410,24 @@ function startTracking() {
             document.getElementById('display-speed').textContent = currentSpeed.toFixed(1);
             if (currentSpeed > maxSpeed) maxSpeed = currentSpeed;
 
-            if (startTemp === null) {
-                startTemp = 'fetching'; 
-                fetchTemperature(latitude, longitude).then(temp => {
-                    startTemp = temp;
-                    saveBlackBox();
-                });
+            // LOGIKA SAMPLING SUHU (AWAL & INTERVAL 15 MENIT / 900 DETIK)
+            if (!isFetchingTemp) {
+                if (tempLog.length === 0) {
+                    isFetchingTemp = true;
+                    fetchTemperature(latitude, longitude).then(temp => {
+                        if (temp !== null) tempLog.push(temp);
+                        isFetchingTemp = false;
+                        saveBlackBox();
+                    });
+                } else if (secondsElapsed - lastTempFetchTime >= 900) {
+                    isFetchingTemp = true;
+                    lastTempFetchTime = secondsElapsed; // Update stempel waktu terakhir
+                    fetchTemperature(latitude, longitude).then(temp => {
+                        if (temp !== null) tempLog.push(temp);
+                        isFetchingTemp = false;
+                        saveBlackBox();
+                    });
+                }
             }
 
             if (currentSpeed < 1.5) { 
@@ -482,19 +499,19 @@ btnSave.addEventListener('click', async () => {
     btnSave.style.opacity = "0.7";
     btnSave.style.pointerEvents = "none";
 
-    // AMBIL SUHU AKHIR
+    // AMBIL SUHU AKHIR SEBAGAI PENUTUP SAMPLING
     if (lastCoord) {
-        endTemp = await fetchTemperature(lastCoord.lat, lastCoord.lon);
+        let endTemp = await fetchTemperature(lastCoord.lat, lastCoord.lon);
+        if (endTemp !== null) {
+            tempLog.push(endTemp);
+        }
     }
 
-    // HITUNG SUHU RATA-RATA
+    // HITUNG SUHU RATA-RATA KESELURUHAN
     let finalAvgTemp = 0;
-    if (typeof startTemp === 'number' && typeof endTemp === 'number') {
-        finalAvgTemp = (startTemp + endTemp) / 2;
-    } else if (typeof startTemp === 'number') {
-        finalAvgTemp = startTemp;
-    } else if (typeof endTemp === 'number') {
-        finalAvgTemp = endTemp;
+    if (tempLog.length > 0) {
+        let sum = tempLog.reduce((a, b) => a + b, 0);
+        finalAvgTemp = sum / tempLog.length;
     }
 
     const avgSpeed = secondsElapsed > 0 ? (totalDistance / (secondsElapsed / 3600)) : 0;
