@@ -4,6 +4,9 @@ const CACHE_NAME = 'kayooh-v3-bunker';
 const STATIC_ASSETS = [
     './login.php',       // Menggantikan './'
     './dashboard.php',
+    './record.php',      // [UPDATE v3.0] Pre-cache mesin tracking utama
+    './detail.php',      // [UPDATE v3.0] Pre-cache mesin render gambar
+    './activities.php',  // [UPDATE v3.0] Pre-cache daftar histori
     './assets/style.css',
     './assets/kayooh.png',
     './assets/favicon-32x32.png',

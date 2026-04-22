@@ -1,5 +1,5 @@
 {
-    "name": "Kayooh - Self Hosted Tracker",
+    "name": "Kayooh Tracker",
     "short_name": "Kayooh",
     "icons": [
         {
@@ -14,7 +14,7 @@
         }
     ],
     "theme_color": "#FF6600",
-    "background_color": "#F4F4F9",
+    "background_color": "#121212",
     "display": "standalone",
-    "start_url": "../index.php" 
+    "start_url": "../dashboard.php" 
 }

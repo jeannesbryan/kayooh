@@ -1,5 +1,5 @@
 <?php
-// activities.php - Timeline Aktivitas Kayooh (Dark Mode Supported)
+// activities.php - Timeline Aktivitas Kayooh (Infinite Scroll & Dark Mode v3.0)
 session_start();
 $db_file = __DIR__ . '/kayooh.sqlite';
 
@@ -12,8 +12,56 @@ try {
     $pdo = new PDO("sqlite:" . $db_file);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-    // Ambil SEMUA data tanpa LIMIT, urutkan dari yang terbaru
-    $all_rides = $pdo->query("SELECT * FROM rides ORDER BY start_date DESC")->fetchAll();
+    $limit = 20; // Jumlah data per load
+    $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+    $offset = ($page - 1) * $limit;
+
+    // --- LOGIKA AJAX UNTUK INFINITE SCROLL ---
+    if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
+        $stmt = $pdo->prepare("SELECT * FROM rides ORDER BY start_date DESC LIMIT ? OFFSET ?");
+        $stmt->execute([$limit, $offset]);
+        $rides = $stmt->fetchAll();
+        
+        if (empty($rides)) exit; // Berhenti jika data habis
+
+        foreach ($rides as $ride) {
+            $source = $ride['source'] ?? '';
+            $badge_class = $source === 'STRAVA' ? 'badge-strava' : 'badge-kayooh';
+            $badge_text = $source === 'STRAVA' ? 'STRAVA' : 'KAYOOH';
+            $name = htmlspecialchars($ride['name']);
+            $date = date('l, d M Y - H:i', strtotime($ride['start_date']));
+            $elev = number_format($ride['total_elevation_gain'], 0);
+            $time = gmdate("H:i:s", $ride['moving_time']);
+            $dist = number_format($ride['distance'], 1);
+
+            echo "
+            <div class='activity-item'>
+                <div class='activity-info'>
+                    <div style='display: flex; align-items: center;'>
+                        <h4><a href='detail.php?id={$ride['id']}' style='color: var(--text-color); text-decoration: none;'>{$name}</a></h4>
+                        <span class='source-badge {$badge_class}' style='color: #ffffff;'>{$badge_text}</span>
+                    </div>
+                    <span>{$date}</span>
+                    <div class='activity-details'>
+                        <span>Elevasi: <b>{$elev}m</b></span>
+                        <span>Waktu: <b>{$time}</b></span>
+                    </div>
+                </div>
+                <div class='activity-data'>
+                    {$dist} <small style='font-size: 10px;'>km</small>
+                </div>
+            </div>";
+        }
+        exit;
+    }
+
+    // --- LOGIKA AWAL (HALAMAN PERTAMA) ---
+    $stmt = $pdo->prepare("SELECT * FROM rides ORDER BY start_date DESC LIMIT ? OFFSET 0");
+    $stmt->execute([$limit]);
+    $initial_rides = $stmt->fetchAll();
+    
+    // Ambil total seluruh aktivitas untuk info di paling bawah
+    $total_rides = $pdo->query("SELECT COUNT(*) FROM rides")->fetchColumn();
 
 } catch (PDOException $e) {
     die("Database error: " . $e->getMessage());
@@ -48,22 +96,22 @@ try {
 
     <h2 style="font-size: 20px; margin-bottom: 20px;">Timeline Aktivitas</h2>
 
-    <div class="activity-list">
-        <?php if (empty($all_rides)): ?>
+    <div class="activity-list" id="activity-container">
+        <?php if (empty($initial_rides)): ?>
             <div class="activity-item" style="justify-content: center; color: #7f8c8d; padding: 40px;">
                 Belum ada rekaman jejak, wak. Yuk gowes!
             </div>
         <?php else: ?>
-            <?php foreach ($all_rides as $ride): ?>
+            <?php foreach ($initial_rides as $ride): ?>
                 <div class="activity-item">
                     <div class="activity-info">
                         <div style="display: flex; align-items: center;">
                             <h4><a href="detail.php?id=<?= $ride['id'] ?>" style="color: var(--text-color); text-decoration: none;"><?= htmlspecialchars($ride['name']) ?></a></h4>
                             
                             <?php if (($ride['source'] ?? '') === 'STRAVA'): ?>
-                                <span class="source-badge badge-strava">STRAVA</span>
+                                <span class="source-badge badge-strava" style="color: #ffffff;">STRAVA</span>
                             <?php else: ?>
-                                <span class="source-badge badge-kayooh">KAYOOH</span>
+                                <span class="source-badge badge-kayooh" style="color: #ffffff;">KAYOOH</span>
                             <?php endif; ?>
                         </div>
                         <span><?= date('l, d M Y - H:i', strtotime($ride['start_date'])) ?></span>
@@ -81,26 +129,69 @@ try {
         <?php endif; ?>
     </div>
 
-    <div style="margin-top: 30px; text-align: center; font-size: 12px; color: #7f8c8d;">
-        Menampilkan total <?= count($all_rides) ?> aktivitas.
+    <div id="loading-indicator" style="display: none; text-align: center; padding: 20px; color: var(--primary-color); font-weight: bold; font-size: 14px;">
+        ⏳ Memuat data...
+    </div>
+    
+    <div id="end-indicator" style="margin-top: 30px; text-align: center; font-size: 12px; color: #7f8c8d; <?= $total_rides > $limit ? 'display: none;' : '' ?>">
+        Total <b><?= $total_rides ?></b> aktivitas telah dimuat seluruhnya.
     </div>
 </div>
 
 <script>
-  // Logika Toggle Tema
-  function toggleTheme() {
-      document.body.classList.toggle('dark-mode');
-      const isDark = document.body.classList.contains('dark-mode');
-      localStorage.setItem('theme', isDark ? 'dark' : 'light');
-      document.getElementById('theme-icon').textContent = isDark ? '☀️' : '🌙';
-  }
-  
-  // Sesuaikan ikon saat halaman selesai dimuat
-  window.addEventListener('DOMContentLoaded', () => { 
-      if(localStorage.getItem('theme') === 'dark') {
-          document.getElementById('theme-icon').textContent = '☀️';
-      }
-  });
+    // --- LOGIKA INFINITE SCROLL ---
+    let currentPage = 1;
+    let isLoading = false;
+    let hasMoreData = <?= $total_rides > $limit ? 'true' : 'false' ?>;
+
+    window.addEventListener('scroll', () => {
+        if (isLoading || !hasMoreData) return;
+        
+        // Cek jika user sudah men-scroll ke dekat bagian paling bawah layar
+        if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 200) {
+            loadMoreActivities();
+        }
+    });
+
+    function loadMoreActivities() {
+        isLoading = true;
+        currentPage++;
+        document.getElementById('loading-indicator').style.display = 'block';
+
+        fetch(`activities.php?ajax=1&page=${currentPage}`)
+            .then(response => response.text())
+            .then(html => {
+                document.getElementById('loading-indicator').style.display = 'none';
+                
+                if (html.trim() === '') {
+                    hasMoreData = false; // Data sudah habis
+                    document.getElementById('end-indicator').style.display = 'block';
+                } else {
+                    // Suntikkan data baru ke dalam list HTML
+                    document.getElementById('activity-container').insertAdjacentHTML('beforeend', html);
+                }
+                isLoading = false;
+            })
+            .catch(err => {
+                console.error("Gagal memuat data:", err);
+                isLoading = false;
+                document.getElementById('loading-indicator').style.display = 'none';
+            });
+    }
+
+    // --- LOGIKA TOGGLE TEMA ---
+    function toggleTheme() {
+        document.body.classList.toggle('dark-mode');
+        const isDark = document.body.classList.contains('dark-mode');
+        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        document.getElementById('theme-icon').textContent = isDark ? '☀️' : '🌙';
+    }
+    
+    window.addEventListener('DOMContentLoaded', () => { 
+        if(localStorage.getItem('theme') === 'dark') {
+            document.getElementById('theme-icon').textContent = '☀️';
+        }
+    });
 </script>
 </body>
 </html>

@@ -1,5 +1,5 @@
 <?php
-// install.php - Setup Database & Registrasi Admin Kayooh
+// install.php - Setup Database & Registrasi Admin Kayooh (v3.0)
 session_start();
 
 $lock_file = __DIR__ . '/install.lock';
@@ -34,6 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($pesan_error)) {
             $pdo = new PDO("sqlite:" . $db_file);
             $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
+            // EKSEKUSI PEMBUATAN STRUKTUR TABEL KAYOOH V3.0
             $pdo->exec("
                 CREATE TABLE IF NOT EXISTS users (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -59,6 +60,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($pesan_error)) {
                     attempts INTEGER DEFAULT 1,
                     last_attempt INTEGER NOT NULL
                 );
+                -- TABEL BARU V3.0: Menyimpan Token Telegram & Pengaturan Lainnya
+                CREATE TABLE IF NOT EXISTS settings (
+                    setting_key TEXT PRIMARY KEY,
+                    setting_value TEXT
+                );
             ");
 
             $hashed_password = password_hash($password, PASSWORD_DEFAULT);
@@ -80,7 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($pesan_error)) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Setup Kayooh</title>
+    <title>Setup Kayooh v3.0</title>
     <link rel="stylesheet" href="assets/style.css">
     <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32x32.png">

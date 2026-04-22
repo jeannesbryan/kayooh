@@ -1,5 +1,5 @@
 <?php
-// detail.php - Detail Aktivitas, Peta, Edit (XSS Secure), Hapus, Export GPX & Multi-Template Flexing (Dark Mode)
+// detail.php - Detail Aktivitas & Mesin Broadcast Peleton (EPIC 3)
 session_start();
 $db_file = __DIR__ . '/kayooh.sqlite';
 
@@ -9,6 +9,51 @@ if (!isset($_SESSION['is_logged_in']) || !isset($_GET['id'])) {
 }
 
 $id = (int)$_GET['id'];
+$log_dir = __DIR__ . '/radar_logs';
+$temp_dir = __DIR__ . '/temp';
+
+// ==========================================
+// EPIC 3: HANDLER UPLOAD GAMBAR BROADCAST
+// ==========================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'broadcast') {
+    $imgData = $_POST['image'] ?? '';
+    $room = preg_replace('/[^a-zA-Z0-9]/', '', $_POST['room'] ?? '');
+    
+    if (empty($room) || empty($imgData)) {
+        echo json_encode(['status' => 'error', 'message' => 'Data tidak valid']);
+        exit;
+    }
+
+    // Decode Base64 Image
+    $imgData = str_replace('data:image/png;base64,', '', $imgData);
+    $imgData = str_replace(' ', '+', $imgData);
+    $data = base64_decode($imgData);
+
+    // Pastikan folder temp lokal tersedia di Debian
+    if (!is_dir($temp_dir)) {
+        mkdir($temp_dir, 0755, true);
+    }
+
+    // Simpan gambar
+    $file_name = "flex_{$room}.png";
+    $file_path = $temp_dir . '/' . $file_name;
+    file_put_contents($file_path, $data);
+
+    // Buat Trigger File untuk Guest (Agar HP mereka otomatis ter-redirect)
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
+    $host = $_SERVER['HTTP_HOST'];
+    $base_dir = rtrim(dirname($_SERVER['PHP_SELF']), '/\\');
+    $img_url = $protocol . $host . $base_dir . '/temp/' . $file_name;
+
+    $trigger_file = $log_dir . '/' . $room . '_broadcast.json';
+    file_put_contents($trigger_file, json_encode([
+        'url' => $img_url, 
+        'timestamp' => time()
+    ]));
+
+    echo json_encode(['status' => 'success']);
+    exit;
+}
 
 // Fungsi Decoder Polyline PHP untuk Export GPX
 function decodePolylinePHP($encoded) {
@@ -48,6 +93,37 @@ try {
 
     if (!$data) die("Data tidak ditemukan, wak!");
 
+    // ==========================================
+    // EPIC 3: DETEKSI PELETON TERAKHIR (MAX 2 JAM)
+    // ==========================================
+    $peleton_names = [];
+    $active_room = '';
+    
+    if (is_dir($log_dir)) {
+        $host_files = glob("{$log_dir}/*_Host.json");
+        $latest_time = 0;
+        foreach ($host_files as $hf) {
+            // Cek apakah file dibuat kurang dari 2 jam yang lalu
+            if (filemtime($hf) > $latest_time && (time() - filemtime($hf) < 7200)) {
+                $latest_time = filemtime($hf);
+                $filename = basename($hf);
+                $active_room = explode('_', $filename)[0];
+            }
+        }
+        
+        // Jika ada room yang aktif, tarik semua nama pesertanya
+        if (!empty($active_room)) {
+            $all_files = glob("{$log_dir}/{$active_room}_*.json");
+            foreach ($all_files as $af) {
+                $u = explode('_', basename($af))[1];
+                $u = str_replace('.json', '', $u);
+                if (strtolower($u) !== 'host' && strtolower($u) !== 'broadcast') {
+                    $peleton_names[] = htmlspecialchars($u);
+                }
+            }
+        }
+    }
+
     // LOGIKA EXPORT GPX
     if (isset($_GET['export']) && $_GET['export'] === 'gpx') {
         $polyline = $data['polyline'];
@@ -83,7 +159,6 @@ try {
 
     // LOGIKA EDIT NAMA DENGAN BENTENG KEAMANAN (XSS PROTECTION)
     if (isset($_POST['action']) && $_POST['action'] === 'edit') {
-        // Membersihkan input dari tag HTML dan karakter khusus berbahaya
         $nama_baru = htmlspecialchars(strip_tags(trim($_POST['new_name'])), ENT_QUOTES, 'UTF-8');
         if (!empty($nama_baru)) {
             $stmt = $pdo->prepare("UPDATE rides SET name = ? WHERE id = ?");
@@ -164,7 +239,7 @@ try {
         
         .minimal-logo { height: 45px; opacity: 0.9; margin-top: 5px; }
 
-        /* Grid Seragam untuk 4 Tombol Aksi */
+        /* Grid Seragam untuk Tombol Aksi */
         .action-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -178,12 +253,17 @@ try {
             justify-content: center;
             text-align: center;
             font-size: 12px;
+            font-weight: bold;
             padding: 14px 10px;
             width: 100%;
             box-sizing: border-box;
             border-radius: 10px;
             text-decoration: none;
             height: 100%;
+            cursor: pointer;
+            border: none;
+            color: white;
+            transition: all 0.2s;
         }
     </style>
 </head>
@@ -196,7 +276,7 @@ try {
         
         <div class="header-actions" style="display: flex; gap: 15px; align-items: center;">
             <button onclick="toggleTheme()" class="theme-toggle" id="theme-icon">🌙</button>
-            <span class="source-badge <?= $data['source'] === 'STRAVA' ? 'badge-strava' : 'badge-kayooh' ?>">
+            <span class="source-badge <?= $data['source'] === 'STRAVA' ? 'badge-strava' : 'badge-kayooh' ?>" style="color: #ffffff;">
                 <?= $data['source'] ?>
             </span>
         </div>
@@ -227,8 +307,8 @@ try {
                 <label style="font-size: 11px; font-weight: bold; color: var(--text-color); text-transform: uppercase;">Ubah Nama Aktivitas</label>
                 <input type="text" name="new_name" value="<?= htmlspecialchars($data['name']) ?>" required style="margin: 8px 0; padding: 10px;">
                 <div style="display: flex; gap: 10px;">
-                    <button type="submit" class="btn-primary" style="padding: 10px; font-size: 12px;">SIMPAN</button>
-                    <button type="button" class="btn-primary" style="padding: 10px; font-size: 12px; background: #95a5a6;" onclick="toggleEdit()">BATAL</button>
+                    <button type="submit" class="btn-grid-item" style="background: var(--primary-color);">SIMPAN</button>
+                    <button type="button" class="btn-grid-item" style="background: #95a5a6;" onclick="toggleEdit()">BATAL</button>
                 </div>
             </form>
         </div>
@@ -258,13 +338,18 @@ try {
             </div>
         </div>
     </div>
+    
     <div class="action-grid">
-        <button onclick="generateShare('standard')" id="btn-share-std" class="btn-primary btn-grid-item" style="background: var(--primary-color);">📸 SHARE MAP</button>
-        <button onclick="generateShare('minimal')" id="btn-share-min" class="btn-primary btn-grid-item" style="background: #34495e;">✨ SHARE STATS</button>
-        <a href="?id=<?= $id ?>&export=gpx" class="btn-primary btn-grid-item" style="background-color: #7f8c8d;">📥 EXPORT GPX</a>
+        <?php if (!empty($active_room)): ?>
+            <button onclick="broadcastPeleton()" id="btn-broadcast" class="btn-grid-item" style="background: #8e44ad; grid-column: span 2; box-shadow: 0 4px 15px rgba(142, 68, 173, 0.4);">📢 BROADCAST PELETON</button>
+        <?php endif; ?>
+        
+        <button onclick="generateShare('standard')" id="btn-share-std" class="btn-grid-item" style="background: var(--primary-color);">📸 SHARE MAP</button>
+        <button onclick="generateShare('minimal')" id="btn-share-min" class="btn-grid-item" style="background: #34495e;">✨ SHARE STATS</button>
+        <a href="?id=<?= $id ?>&export=gpx" class="btn-grid-item" style="background-color: #7f8c8d;">📥 EXPORT GPX</a>
         <form method="POST" onsubmit="return confirm('Yakin ingin menghapus gowes ini, wak?');" style="margin: 0; padding: 0;">
             <input type="hidden" name="action" value="delete">
-            <button type="submit" class="btn-primary btn-grid-item" style="background-color: #e74c3c;">🗑️ HAPUS</button>
+            <button type="submit" class="btn-grid-item" style="background-color: #e74c3c;">🗑️ HAPUS</button>
         </form>
     </div>
 
@@ -295,11 +380,21 @@ try {
         <div class="minimal-label">Suhu</div>
         <div class="minimal-value"><?= (isset($data['avg_temp']) && $data['avg_temp'] > 0) ? str_replace('.', ',', number_format($data['avg_temp'], 1)) . ' <small>&deg;C</small>' : '-- <small>&deg;C</small>' ?></div>
     </div>
+    
+    <?php if (!empty($peleton_names)): ?>
+    <div class="minimal-item" style="margin-top: -15px; margin-bottom: 20px;">
+        <div class="minimal-label" style="font-size: 11px; color: #f39c12; text-transform: uppercase;">🚴 Gowes Bareng</div>
+        <div style="font-size: 12px; font-weight: bold; color: var(--text-color); opacity: 0.9;">
+            Anda, <?= implode(', ', $peleton_names) ?>
+        </div>
+    </div>
+    <?php endif; ?>
 
     <div id="minimal-map"></div>
 
     <img src="assets/kayooh.png" class="minimal-logo" alt="Kayooh">
 </div>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
     // ---------------------------------------------------------
@@ -380,14 +475,79 @@ try {
         mapMin.setView([-7.801, 110.373], 13);
     }
 
-    // ENGINE PEMBUAT GAMBAR
+    // ==========================================
+    // EPIC 3: ENGINE UPLOAD BROADCAST PELETON
+    // ==========================================
+    function broadcastPeleton() {
+        const btn = document.getElementById('btn-broadcast');
+        btn.textContent = "⏳ MERENDER GAMBAR...";
+        btn.style.pointerEvents = "none";
+        
+        const targetArea = document.getElementById('capture-minimal');
+        const originalScrollY = window.scrollY;
+        window.scrollTo(0, 0);
+        
+        targetArea.style.position = 'relative';
+        targetArea.style.left = '0';
+        
+        setTimeout(() => {
+            mapMin.invalidateSize(false);
+            if (coords.length > 0) {
+                mapMin.fitBounds(L.polyline(coords).getBounds(), {padding: [40, 40], animate: false});
+            }
+            
+            setTimeout(() => {
+                html2canvas(targetArea, {
+                    useCORS: true, 
+                    allowTaint: false, 
+                    backgroundColor: null, 
+                    scale: 2,
+                    scrollX: 0,
+                    scrollY: 0
+                }).then(canvas => {
+                    targetArea.style.position = 'absolute';
+                    targetArea.style.left = '-9999px';
+                    window.scrollTo(0, originalScrollY);
+                    
+                    btn.textContent = "🚀 MENGUNGGAH KE SERVER...";
+                    
+                    const imgData = canvas.toDataURL('image/png');
+                    const formData = new FormData();
+                    formData.append('action', 'broadcast');
+                    formData.append('image', imgData);
+                    formData.append('room', '<?= $active_room ?>');
+                    
+                    fetch('detail.php?id=<?= $id ?>', { 
+                        method: 'POST', 
+                        body: formData 
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if(data.status === 'success') {
+                            btn.textContent = "✅ BROADCAST SUKSES!";
+                            btn.style.background = "#27ae60";
+                            alert("Gambar berhasil di-render dan didistribusikan!\nHP teman-teman Peleton akan otomatis diarahkan ke gambar ini.");
+                        } else {
+                            btn.textContent = "📢 BROADCAST PELETON";
+                            btn.style.pointerEvents = "auto";
+                            alert("Gagal mengunggah gambar: " + (data.message || "Unknown error"));
+                        }
+                    }).catch(err => {
+                        btn.textContent = "📢 BROADCAST PELETON";
+                        btn.style.pointerEvents = "auto";
+                        alert("Gagal menghubungi server.");
+                    });
+                });
+            }, 1500);
+        }, 100);
+    }
+
+    // ENGINE PEMBUAT GAMBAR LOKAL
     function generateShare(mode) {
         const btnStd = document.getElementById('btn-share-std');
         const btnMin = document.getElementById('btn-share-min');
         
         let targetArea;
-
-        // FIX OFFSET: Simpan posisi scroll, dan scroll paksa ke paling atas
         const originalScrollY = window.scrollY;
         window.scrollTo(0, 0);
 
@@ -434,7 +594,7 @@ try {
                 html2canvas(targetArea, {
                     useCORS: true,
                     allowTaint: false,
-                    backgroundColor: null, // Transparan total
+                    backgroundColor: null,
                     scale: 2,
                     scrollX: 0,
                     scrollY: 0
