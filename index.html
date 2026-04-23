@@ -164,20 +164,26 @@
                 <li><b>Auto-Flexing & Broadcast</b>: Otomatisasi pembuatan gambar statistik gowes dan didistribusikan ke layar HP semua peserta Peleton.</li>
                 <li><b>Map Matching OSRM</b>: Garis rute secara cerdas "menempel" rapi di jalan raya.</li>
                 <li><b>Black Box Auto-Save</b>: Memori aman! Data gowes dipulihkan otomatis walau browser ter-reload.</li>
+                <li><b>Telemetri Suhu Udara</b>: Analisis cuaca otomatis via Open-Meteo API.</li>
+                <li><b>Stopwatch & Auto-Pause</b>: Timer presisi tinggi berbasis stempel waktu (Timestamp).</li>
+                <li><b>Anti Brute-Force</b>: Gerbang login dilengkapi Database IP Blocker.</li>
+                <li><b>Bebas Biaya Langganan</b>: Semua fitur analitik tersedia gratis 100% selamanya tanpa <i>paywall</i>.</li>
                 <li><b>Strava Sync</b>: Impor otomatis seluruh riwayat gowes historis Anda dari Strava.</li>
                 <li><b>Ekspor GPX Universal</b>: Unduh rute Anda kapan saja untuk dipindah ke platform lain.</li>
                 <li><b>Night Ride Mode</b>: Tema gelap otomatis yang nyaman dan peta anti-silau.</li>
-                <li><b>Offline Mode (PWA)</b>: Install ke HP, aplikasi tetap bisa merender UI dan GPS meski sinyal putus di tengah rute.</li>
+                <li><b>Bunker Offline (PWA)</b>: Install ke HP, aplikasi tetap bisa merender UI dan GPS meski sinyal putus di tengah rute.</li>
             </ul>
         </div>
         <div class="box-list con-box">
             <h4>⚠️ Karakteristik & Catatan Penggunaan</h4>
             <ul>
-                <li><b>Konsumsi Baterai</b>: Menggunakan Wake Lock API agar GPS tidak tertidur, layar HP akan terus menyala sehingga memakan daya lebih besar dibanding aplikasi <i>native</i>.</li>
-                <li><b>Ketergantungan Internet</b>: Meski bisa merekam secara <i>offline</i>, fitur tingkat lanjut (Radar Peleton, Telegram, Suhu, dan Map Matching) mewajibkan koneksi aktif.</li>
-                <li><b>Akurasi Hardware</b>: Kualitas pelacakan murni bergantung pada kualitas sensor GPS HP Anda dan kondisi rintangan lingkungan.</li>
-                <li><b>Tanggung Jawab Data</b>: Karena ini sistem <i>self-hosted</i> tanpa cloud sentral, pencadangan (<i>backup</i>) file database SQLite adalah tanggung jawab Anda sepenuhnya.</li>
-                <li><b>Wajib HTTPS</b>: Keamanan sensor lokasi browser dan fitur <i>Auto-Copy</i> mewajibkan sertifikat SSL aktif di domain Anda.</li>
+                <li><b>Konsumsi Baterai</b>: Menggunakan Wake Lock API agar layar HP terus menyala (mencegah sensor GPS tertidur), sehingga memakan daya lebih besar dibanding aplikasi <i>native</i>.</li>
+                <li><b>Ketergantungan Internet</b>: Meski memori <i>Black Box</i> bisa merekam secara <i>offline</i>, fitur tingkat lanjut (Radar Peleton, Live Telegram, Suhu, dan Map Matching) mewajibkan koneksi aktif.</li>
+                <li><b>Limitasi OS & Background Process</b>: Karena berbasis Web (PWA), sistem operasi (terutama iOS/iPhone) dapat mematikan paksa akses GPS jika peramban di-<i>minimize</i> atau layar dimatikan. Disarankan layar tetap menyala selama gowes.</li>
+                <li><b>Akurasi Hardware</b>: Kualitas pelacakan murni bergantung pada kualitas sensor GPS HP Anda dan kondisi rintangan lingkungan (gedung tinggi/hutan lebat).</li>
+                <li><b>Tanggung Jawab Data & Storage</b>: Pencadangan (<i>backup</i>) SQLite adalah tanggung jawab Anda. File gambar hasil <i>render</i> (Auto-Flexing) yang tersimpan di server juga akan memakan ruang penyimpanan seiring waktu.</li>
+                <li><b>Wajib HTTPS</b>: Keamanan sensor lokasi dari browser modern dan fitur <i>Clipboard Auto-Copy</i> mewajibkan sertifikat SSL aktif di domain Anda.</li>
+                <li><b>Setup Teknis Lanjutan</b>: Membutuhkan pengetahuan dasar tentang manajemen <i>web server</i>. Anda juga diwajibkan untuk mengonfigurasi Bot API Telegram dan Chat ID secara mandiri.</li>
             </ul>
         </div>
     </div>
