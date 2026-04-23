@@ -171,7 +171,7 @@
                 <li><b>Strava Sync</b>: Impor otomatis seluruh riwayat gowes historis Anda dari Strava.</li>
                 <li><b>Ekspor GPX Universal</b>: Unduh rute Anda kapan saja untuk dipindah ke platform lain.</li>
                 <li><b>Night Ride Mode</b>: Tema gelap otomatis yang nyaman dan peta anti-silau.</li>
-                <li><b>Bunker Offline (PWA)</b>: Install ke HP, aplikasi tetap bisa merender UI dan GPS meski sinyal putus di tengah rute.</li>
+                <li><b>Offline Mode (PWA)</b>: Install ke HP, aplikasi tetap bisa merender UI dan GPS meski sinyal putus di tengah rute.</li>
             </ul>
         </div>
         <div class="box-list con-box">
@@ -197,6 +197,20 @@
         <li><b>OpenStreetMap (OSM)</b>: Dimuat melalui <i>library</i> Leaflet.js sebagai kanvas visual pemetaan.</li>
         <li><b>Strava API</b>: Digunakan hanya jika Anda memilih untuk melakukan "Sync Strava" secara sukarela.</li>
     </ul>
+
+    <h2>Panduan Instalasi Server (First-Time Setup)</h2>
+    <p>Kayooh dirancang agar sangat ringan dan mudah di-<i>deploy</i> di VPS maupun <i>Shared Hosting</i> biasa. Berikut adalah langkah untuk menghidupkan Kayooh di <i>server</i> Anda:</p>
+    
+    <div class="guide-step">
+        <ol>
+            <li><b>Persyaratan Sistem:</b> Pastikan <i>server</i> Anda menjalankan PHP (direkomendasikan versi 7.4 atau 8.0+) dan ekstensi <b>SQLite3</b> telah diaktifkan.</li>
+            <li><b>Unggah File:</b> <i>Upload</i> atau <i>clone</i> seluruh <i>source code</i> Kayooh ke direktori <i>web server</i> Anda (misal: <code>public_html/</code> atau <code>/var/www/html/</code>).</li>
+            <li><b>Hak Akses (Permissions):</b> Pastikan <i>folder</i> instalasi Kayooh memiliki izin tulis (<i>writable</i>). Sistem PHP membutuhkan izin ini (misal: <code>chmod 755</code> atau <code>chown www-data</code>) untuk menciptakan <i>database</i> <code>kayooh.sqlite</code> serta menulis <i>log</i> kordinat di folder <code>/radar_logs</code> dan <code>/temp</code>.</li>
+            <li><b>Jalankan Installer:</b> Buka <i>browser</i> Anda dan akses alamat instalasi: <span class="tg-highlight">https://domain-anda.com/install.php</span></li>
+            <li><b>Buat Akun Kapten:</b> Masukkan email dan kata sandi yang kuat untuk mengamankan <i>dashboard</i> utama Anda. Setelah berhasil, sistem akan otomatis mengunci akses instalasi demi keamanan.</li>
+            <li><b>Selesai!</b> Kayooh siap digunakan. Lanjutkan ke tahap pengaturan Bot Telegram dan sinkronisasi Strava di bawah ini. (Opsional)</li>
+        </ol>
+    </div>
 
     <h2>Panduan Live Tracking (Telegram & Peleton)</h2>
     <p>Fitur andalan Kayooh adalah kemampuannya menyiarkan lokasi Anda secara langsung ke keluarga di rumah tanpa mereka perlu menginstal aplikasi pelacak tambahan. Cukup gunakan "Grup Komando" Telegram!</p>
@@ -238,6 +252,33 @@
             <li><b>Mode Peleton:</b> Anda bisa membagikan <b>Link Radar Web</b> ke teman-teman gowes. Titik Anda dan titik teman-teman Anda akan muncul bersamaan di satu peta khusus.</li>
             <li>Saat Anda menekan "Simpan", Bot Telegram akan otomatis mengirimkan rangkuman kecepatan, jarak, elevasi, suhu, beserta gambar keren pamer ke grup tersebut!</li>
         </ul>
+    </div>
+
+    <h2>Panduan Mode Peleton (Co-Gowes) & Auto-Flexing</h2>
+    <p>Mode Peleton adalah fitur "Sultan" di Kayooh. Fitur ini memungkinkan Anda sebagai Kapten (Host) untuk menyatukan titik lokasi teman-teman gowes (Guest) dalam satu layar Radar, lalu mendistribusikan gambar statistik secara otomatis ke HP mereka di akhir sesi.</p>
+    
+    <div class="guide-step">
+        <h3>Langkah 1: Inisiasi oleh Kapten (Host)</h3>
+        <ol>
+            <li>Buka Dashboard Kayooh, klik <b>🔴 RECORD RIDE</b>.</li>
+            <li>Pilih mode <b>🤝 Co-Gowes (Peleton)</b>. Sistem akan otomatis men-<i>generate</i> 4 digit <i>Room ID</i> unik.</li>
+            <li>Klik tombol <b>📋 COPY LINK</b>, lalu bagikan tautan tersebut ke grup obrolan (WA/Telegram) teman-teman gowes Anda.</li>
+            <li>Klik <b>▶️ GAS PELETON</b> untuk mulai merekam aktivitas.</li>
+        </ol>
+
+        <h3>Langkah 2: Bergabung ke Radar (Guest)</h3>
+        <ol>
+            <li>Peserta (Guest) cukup mengklik tautan yang dibagikan Kapten (tidak perlu mendaftar akun atau instal aplikasi).</li>
+            <li>Masukkan nama panggilan (maksimal 15 huruf), lalu klik <b>🚀 MULAI GOWES</b>.</li>
+            <li><i>Browser</i> Guest akan memancarkan kordinat mereka ke server secara <i>background</i>. <br><b>⚠️ Penting:</b> Pastikan <i>browser</i> di HP Kapten maupun Guest tidak di-<i>minimize</i> dan layar dibiarkan menyala agar sensor GPS tidak ditidurkan oleh sistem operasi!</li>
+        </ol>
+
+        <h3>Langkah 3: Akhiri Gowes & Sihir Broadcast</h3>
+        <ol>
+            <li>Setelah sampai di warkop atau garis <i>finish</i>, Kapten (Host) menekan tombol <b>⬜ STOP RIDE</b> lalu <b>💾 SIMPAN AKTIVITAS</b>.</li>
+            <li>Setelah tersimpan, Kapten akan diarahkan ke halaman Detail Aktivitas. Klik tombol ungu: <b>📢 BROADCAST PELETON</b>.</li>
+            <li><b>The Magic:</b> Server Anda akan merender gambar statistik (lengkap dengan daftar nama peserta). Dalam maksimal 5 detik, layar HP seluruh peserta Peleton akan otomatis melompat (<i>redirect</i>) ke halaman gambar tersebut. Tinggal tahan gambar, simpan, dan pamerkan ke <i>Story</i>!</li>
+        </ol>
     </div>
 
     <h2>Panduan Lengkap API Strava</h2>

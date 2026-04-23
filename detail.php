@@ -296,8 +296,15 @@ try {
                 <?= htmlspecialchars($data['name']) ?> 
                 <span id="edit-btn-icon" style="cursor:pointer; font-size:14px; opacity:0.5;" onclick="toggleEdit()">✏️</span>
             </h2>
-            <p id="view-date" style="font-size: 12px; color: #7f8c8d; margin-bottom: 20px;">
-                <?= date('l, d F Y - H:i', strtotime($data['start_date'])) ?>
+            <p id="view-date" style="font-size: 12px; color: var(--text-color); opacity: 0.8; margin-bottom: 20px;">
+                <?php
+                // Logika penerjemah tanggal ke Bahasa Indonesia
+                $ts = strtotime($data['start_date']);
+                $hari_id = ['Sunday'=>'Minggu','Monday'=>'Senin','Tuesday'=>'Selasa','Wednesday'=>'Rabu','Thursday'=>'Kamis','Friday'=>'Jumat','Saturday'=>'Sabtu'];
+                $bulan_id = ['January'=>'Januari','February'=>'Februari','March'=>'Maret','April'=>'April','May'=>'Mei','June'=>'Juni','July'=>'Juli','August'=>'Agustus','September'=>'September','October'=>'Oktober','November'=>'November','December'=>'Desember'];
+                
+                echo $hari_id[date('l', $ts)] . ', ' . date('d', $ts) . ' ' . $bulan_id[date('F', $ts)] . ' ' . date('Y - H:i', $ts);
+                ?>
             </p>
         </div>
 

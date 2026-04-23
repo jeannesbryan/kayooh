@@ -474,7 +474,8 @@ input:focus {
 .detail-card label {
     display: block;
     font-size: 10px;
-    color: #7f8c8d;
+    color: var(--text-color); /* Mengikuti warna tema otomatis */
+    opacity: 0.8; /* Dibuat sedikit transparan agar beda dengan angka utamanya */
     margin-bottom: 5px;
     text-transform: uppercase;
     font-weight: 700;

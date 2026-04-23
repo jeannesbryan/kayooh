@@ -25,11 +25,18 @@ try {
         if (empty($rides)) exit; // Berhenti jika data habis
 
         foreach ($rides as $ride) {
+            $ts = strtotime($ride['start_date']);
+            $hari_id = ['Sunday'=>'Minggu','Monday'=>'Senin','Tuesday'=>'Selasa','Wednesday'=>'Rabu','Thursday'=>'Kamis','Friday'=>'Jumat','Saturday'=>'Sabtu'];
+            $bulan_id = ['January'=>'Januari','February'=>'Februari','March'=>'Maret','April'=>'April','May'=>'Mei','June'=>'Juni','July'=>'Juli','August'=>'Agustus','September'=>'September','October'=>'Oktober','November'=>'November','December'=>'Desember'];
+            
             $source = $ride['source'] ?? '';
             $badge_class = $source === 'STRAVA' ? 'badge-strava' : 'badge-kayooh';
             $badge_text = $source === 'STRAVA' ? 'STRAVA' : 'KAYOOH';
             $name = htmlspecialchars($ride['name']);
-            $date = date('l, d M Y - H:i', strtotime($ride['start_date']));
+            
+            // Format Tanggal Indonesia
+            $date = $hari_id[date('l', $ts)] . ', ' . date('d', $ts) . ' ' . $bulan_id[date('F', $ts)] . ' ' . date('Y - H:i', $ts);
+            
             $elev = number_format($ride['total_elevation_gain'], 0);
             $time = gmdate("H:i:s", $ride['moving_time']);
             $dist = number_format($ride['distance'], 1);
@@ -114,7 +121,15 @@ try {
                                 <span class="source-badge badge-kayooh" style="color: #ffffff;">KAYOOH</span>
                             <?php endif; ?>
                         </div>
-                        <span><?= date('l, d M Y - H:i', strtotime($ride['start_date'])) ?></span>
+                        <span>
+                            <?php
+                            $ts = strtotime($ride['start_date']);
+                            $hari_id = ['Sunday'=>'Minggu','Monday'=>'Senin','Tuesday'=>'Selasa','Wednesday'=>'Rabu','Thursday'=>'Kamis','Friday'=>'Jumat','Saturday'=>'Sabtu'];
+                            $bulan_id = ['January'=>'Januari','February'=>'Februari','March'=>'Maret','April'=>'April','May'=>'Mei','June'=>'Juni','July'=>'Juli','August'=>'Agustus','September'=>'September','October'=>'Oktober','November'=>'November','December'=>'Desember'];
+                            
+                            echo $hari_id[date('l', $ts)] . ', ' . date('d', $ts) . ' ' . $bulan_id[date('F', $ts)] . ' ' . date('Y - H:i', $ts);
+                            ?>
+                        </span>
                         
                         <div class="activity-details">
                             <span>Elevasi: <b><?= number_format($ride['total_elevation_gain'], 0) ?>m</b></span>

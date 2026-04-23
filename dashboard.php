@@ -213,8 +213,17 @@ if (isset($_GET['logout'])) { session_destroy(); header('Location: login.php'); 
         <?php foreach ($recent_rides as $ride): ?>
             <div class="activity-item">
                 <div class="activity-info">
-                    <h4><a href="detail.php?id=<?= $ride['id'] ?>" style="color: var(--text-color); text-decoration: none;"><?= htmlspecialchars($ride['name']) ?></a></h4>
-                    <span><?= date('d M Y', strtotime($ride['start_date'])) ?></span>
+                    <div class="activity-info">
+                        <h4><a href="detail.php?id=<?= $ride['id'] ?>" style="color: var(--text-color); text-decoration: none;"><?= htmlspecialchars($ride['name']) ?></a></h4>
+                        <span>
+                            <?php
+                                $ts = strtotime($ride['start_date']);
+                                $bulan_id = ['January'=>'Januari','February'=>'Februari','March'=>'Maret','April'=>'April','May'=>'Mei','June'=>'Juni','July'=>'Juli','August'=>'Agustus','September'=>'September','October'=>'Oktober','November'=>'November','December'=>'Desember'];
+                        
+                                echo date('d', $ts) . ' ' . $bulan_id[date('F', $ts)] . ' ' . date('Y', $ts);
+                            ?>
+                        </span>
+                    </div>
                 </div>
                 <div class="activity-data"><?= number_format($ride['distance'], 1) ?> km</div>
             </div>
