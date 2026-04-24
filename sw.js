@@ -1,12 +1,13 @@
-const CACHE_NAME = 'kayooh-v3-bunker';
+const CACHE_NAME = 'kayooh-v4-bunker';
 
 // Aset yang WAJIB ada di cache agar UI tidak hancur saat offline
 const STATIC_ASSETS = [
-    './login.php',       // Menggantikan './'
+    './login.php',       
     './dashboard.php',
-    './record.php',      // [UPDATE v3.0] Pre-cache mesin tracking utama
-    './detail.php',      // [UPDATE v3.0] Pre-cache mesin render gambar
-    './activities.php',  // [UPDATE v3.0] Pre-cache daftar histori
+    './record.php',      
+    './detail.php',      
+    './activities.php',  
+    './gpx_import.php',  // [UPDATE v4.0] Pre-cache mesin GPX Luring
     './assets/style.css',
     './assets/kayooh.png',
     './assets/favicon-32x32.png',
@@ -14,7 +15,7 @@ const STATIC_ASSETS = [
     './assets/site.webmanifest',
     'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
     'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
-    'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js' // Wajib agar bisa pamer (flexing) saat offline!
+    'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js' 
 ];
 
 self.addEventListener('install', event => {
@@ -34,13 +35,12 @@ self.addEventListener('activate', event => {
             );
         })
     );
-    return self.clients.claim(); // Memaksa SW langsung aktif
+    return self.clients.claim(); 
 });
 
 self.addEventListener('fetch', event => {
     const req = event.request;
 
-    // Strategi 1: Untuk Aset Statis & Leaflet (Cache First, Network Fallback)
     if (req.url.match(/\.(css|js|png|jpg|jpeg|svg|woff2|webmanifest)$/) || req.url.includes('unpkg.com')) {
         event.respondWith(
             caches.match(req).then(cachedRes => {
@@ -55,23 +55,18 @@ self.addEventListener('fetch', event => {
         return;
     }
 
-    // Strategi 2: Untuk File PHP & Halaman Web (Network First, Cache Fallback + Offline Page)
     event.respondWith(
         fetch(req).then(fetchRes => {
-            // Jika berhasil fetch dari internet, simpan diam-diam ke cache
             return caches.open(CACHE_NAME).then(cache => {
                 cache.put(req, fetchRes.clone());
                 return fetchRes;
             });
         }).catch(async () => {
-            // Jika sinyal putus, coba cari halamannya di cache
             const cachedResponse = await caches.match(req);
             if (cachedResponse) {
                 return cachedResponse;
             }
 
-            // Jika file tidak ada di cache (URL baru), dan yang diakses adalah halaman HTML (navigasi)
-            // Tampilkan "Bunker Offline" ala Kayooh!
             if (req.headers.get('accept').includes('text/html')) {
                 return new Response(
                     `<!DOCTYPE html>

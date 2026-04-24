@@ -1,5 +1,5 @@
 <?php
-// activities.php - Timeline Aktivitas Kayooh (Infinite Scroll & Dark Mode v3.0)
+// activities.php - Timeline Aktivitas Kayooh (Infinite Scroll, Peleton Badge & Dark Mode v4.0)
 session_start();
 $db_file = __DIR__ . '/kayooh.sqlite';
 
@@ -16,7 +16,9 @@ try {
     $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
     $offset = ($page - 1) * $limit;
 
-    // --- LOGIKA AJAX UNTUK INFINITE SCROLL ---
+    // =========================================================
+    // JALUR 1: LOGIKA AJAX UNTUK INFINITE SCROLL (DATA KE-21 DST)
+    // =========================================================
     if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
         $stmt = $pdo->prepare("SELECT * FROM rides ORDER BY start_date DESC LIMIT ? OFFSET ?");
         $stmt->execute([$limit, $offset]);
@@ -41,14 +43,23 @@ try {
             $time = gmdate("H:i:s", $ride['moving_time']);
             $dist = number_format($ride['distance'], 1);
 
+            // Logika Indikator Peleton untuk output AJAX
+            $peleton_badge = '';
+            if (!empty($ride['participants']) && $ride['participants'] !== '[]') {
+                $peleton_badge = "<span style='font-size: 12px; margin-left: 5px;' title='Gowes Peleton'>👥</span>";
+            }
+
             echo "
             <div class='activity-item'>
                 <div class='activity-info'>
                     <div style='display: flex; align-items: center;'>
-                        <h4><a href='detail.php?id={$ride['id']}' style='color: var(--text-color); text-decoration: none;'>{$name}</a></h4>
-                        <span class='source-badge {$badge_class}' style='color: #ffffff;'>{$badge_text}</span>
+                        <h4 style='margin: 0; display: flex; align-items: center;'>
+                            <a href='detail.php?id={$ride['id']}' style='color: var(--text-color); text-decoration: none;'>{$name}</a>
+                            {$peleton_badge}
+                        </h4>
+                        <span class='source-badge {$badge_class}' style='color: #ffffff; margin-left: 10px;'>{$badge_text}</span>
                     </div>
-                    <span>{$date}</span>
+                    <span style='display: block; margin-top: 4px;'>{$date}</span>
                     <div class='activity-details'>
                         <span>Elevasi: <b>{$elev}m</b></span>
                         <span>Waktu: <b>{$time}</b></span>
@@ -59,10 +70,12 @@ try {
                 </div>
             </div>";
         }
-        exit;
+        exit; // Pastikan AJAX terhenti di sini
     }
 
-    // --- LOGIKA AWAL (HALAMAN PERTAMA) ---
+    // =========================================================
+    // JALUR 2: LOGIKA AWAL / RENDER PERTAMA (HALAMAN BARU DIBUKA)
+    // =========================================================
     $stmt = $pdo->prepare("SELECT * FROM rides ORDER BY start_date DESC LIMIT ? OFFSET 0");
     $stmt->execute([$limit]);
     $initial_rides = $stmt->fetchAll();
@@ -113,15 +126,23 @@ try {
                 <div class="activity-item">
                     <div class="activity-info">
                         <div style="display: flex; align-items: center;">
-                            <h4><a href="detail.php?id=<?= $ride['id'] ?>" style="color: var(--text-color); text-decoration: none;"><?= htmlspecialchars($ride['name']) ?></a></h4>
+                            <h4 style="margin: 0; display: flex; align-items: center;">
+                                <a href="detail.php?id=<?= $ride['id'] ?>" style="color: var(--text-color); text-decoration: none;">
+                                    <?= htmlspecialchars($ride['name']) ?>
+                                </a>
+                                <?php if (!empty($ride['participants']) && $ride['participants'] !== '[]'): ?>
+                                    <span style="font-size: 12px; margin-left: 5px;" title="Gowes Peleton">👥</span>
+                                <?php endif; ?>
+                            </h4>
                             
                             <?php if (($ride['source'] ?? '') === 'STRAVA'): ?>
-                                <span class="source-badge badge-strava" style="color: #ffffff;">STRAVA</span>
+                                <span class="source-badge badge-strava" style="color: #ffffff; margin-left: 10px;">STRAVA</span>
                             <?php else: ?>
-                                <span class="source-badge badge-kayooh" style="color: #ffffff;">KAYOOH</span>
+                                <span class="source-badge badge-kayooh" style="color: #ffffff; margin-left: 10px;">KAYOOH</span>
                             <?php endif; ?>
                         </div>
-                        <span>
+                        
+                        <span style="display: block; margin-top: 4px;">
                             <?php
                             $ts = strtotime($ride['start_date']);
                             $hari_id = ['Sunday'=>'Minggu','Monday'=>'Senin','Tuesday'=>'Selasa','Wednesday'=>'Rabu','Thursday'=>'Kamis','Friday'=>'Jumat','Saturday'=>'Sabtu'];
@@ -136,6 +157,7 @@ try {
                             <span>Waktu: <b><?= gmdate("H:i:s", $ride['moving_time']) ?></b></span>
                         </div>
                     </div>
+                    
                     <div class="activity-data">
                         <?= number_format($ride['distance'], 1) ?> <small style="font-size: 10px;">km</small>
                     </div>

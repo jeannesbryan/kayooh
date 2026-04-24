@@ -1,8 +1,9 @@
 <?php
-// detail.php - Detail Aktivitas & Mesin Broadcast Peleton (EPIC 3)
+// detail.php - Detail Aktivitas & Mesin Broadcast Peleton (Readability Optimized v4.0 + Storage Fix)
 session_start();
 $db_file = __DIR__ . '/kayooh.sqlite';
 
+// 1. Proteksi Halaman
 if (!isset($_SESSION['is_logged_in']) || !isset($_GET['id'])) {
     header('Location: dashboard.php');
     exit;
@@ -39,6 +40,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $file_path = $temp_dir . '/' . $file_name;
     file_put_contents($file_path, $data);
 
+    // --- GARBAGE COLLECTOR (BOM WAKTU STORAGE FIX) ---
+    // Bersihkan file PNG yang umurnya lebih dari 24 jam di folder temp (Probabilitas 1/10)
+    if (rand(1, 10) === 1) { 
+        foreach (glob("{$temp_dir}/*.png") as $file) {
+            if (filemtime($file) < (time() - 86400)) {
+                unlink($file);
+            }
+        }
+    }
+
     // Buat Trigger File untuk Guest (Agar HP mereka otomatis ter-redirect)
     $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
     $host = $_SERVER['HTTP_HOST'];
@@ -55,10 +66,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     exit;
 }
 
-// Fungsi Decoder Polyline PHP untuk Export GPX
+// ==========================================
+// FUNGSI DECODER POLYLINE UNTUK EXPORT GPX
+// ==========================================
 function decodePolylinePHP($encoded) {
     $length = strlen($encoded);
-    $index = 0; $points = array(); $lat = 0; $lng = 0;
+    $index = 0; 
+    $points = array(); 
+    $lat = 0; 
+    $lng = 0;
+    
     while ($index < $length) {
         $b = 0; $shift = 0; $result = 0;
         do {
@@ -77,16 +94,33 @@ function decodePolylinePHP($encoded) {
         } while ($b >= 0x20);
         $dlng = (($result & 1) ? ~($result >> 1) : ($result >> 1));
         $lng += $dlng;
+        
         $points[] = array($lat * 1e-5, $lng * 1e-5);
     }
     return $points;
 }
 
+// ==========================================
+// KONEKSI DATABASE & AMBIL DATA UTAMA
+// ==========================================
 try {
     $pdo = new PDO("sqlite:" . $db_file);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-    // AMBIL DATA UTAMA
+    // Ambil Nama Kapten dari Settings (Solusi Jalur 3)
+    $captain_name = 'Kapten';
+    try {
+        $stmt_set = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'captain_name'");
+        if ($row = $stmt_set->fetch()) {
+            if (trim($row['setting_value']) !== '') {
+                $captain_name = trim($row['setting_value']);
+            }
+        }
+    } catch (PDOException $e) {
+        // Abaikan jika tabel settings bermasalah
+    }
+
+    // Ambil Data Rides
     $ride = $pdo->prepare("SELECT * FROM rides WHERE id = ?");
     $ride->execute([$id]);
     $data = $ride->fetch();
@@ -94,13 +128,38 @@ try {
     if (!$data) die("Data tidak ditemukan, wak!");
 
     // ==========================================
-    // EPIC 3: DETEKSI PELETON TERAKHIR (MAX 2 JAM)
+    // LOGIKA PESERTA PELETON (V4.0 & V3.0 FALLBACK)
     // ==========================================
+    
+    // 1. Cek Data Peserta di Database (Fitur v4.0)
+    $saved_participants = [];
+    if (!empty($data['participants']) && $data['participants'] !== '[]') {
+        $saved_participants = json_decode($data['participants'], true);
+        if (!is_array($saved_participants)) {
+            $saved_participants = [];
+        }
+    }
+
+    // 2. Cek Live Radar Logs untuk fitur Broadcast & Multi-Stats
     $peleton_names = [];
     $active_room = '';
+    $peleton_stats = []; // Array baru untuk menyimpan statistik individu
+
+    // Default Host Stats (Paling akurat dari Database)
+    $peleton_stats[] = [
+        'name' => $captain_name,
+        'dist' => number_format($data['distance'], 2),
+        'speed' => number_format($data['average_speed'], 1),
+        'is_host' => true
+    ];
     
     if (is_dir($log_dir)) {
-        $host_files = glob("{$log_dir}/*_Host.json");
+        // Cek fallback file MD5 atau penamaan lama v3.0
+        $host_files = glob("{$log_dir}/*_" . md5('Host') . ".json");
+        if (empty($host_files)) {
+            $host_files = glob("{$log_dir}/*_Host.json");
+        }
+        
         $latest_time = 0;
         foreach ($host_files as $hf) {
             // Cek apakah file dibuat kurang dari 2 jam yang lalu
@@ -111,20 +170,56 @@ try {
             }
         }
         
-        // Jika ada room yang aktif, tarik semua nama pesertanya
+        // Jika ada room yang aktif, tarik semua nama pesertanya & statistik (untuk Broadcast)
         if (!empty($active_room)) {
             $all_files = glob("{$log_dir}/{$active_room}_*.json");
             foreach ($all_files as $af) {
-                $u = explode('_', basename($af))[1];
-                $u = str_replace('.json', '', $u);
-                if (strtolower($u) !== 'host' && strtolower($u) !== 'broadcast') {
-                    $peleton_names[] = htmlspecialchars($u);
+                // Baca isi JSON untuk mengambil variabel 'distance' & 'speed' (Fitur v4.0)
+                $rider_data = json_decode(file_get_contents($af), true);
+                if ($rider_data) {
+                    $u = $rider_data['user'];
+                    if (strtolower($u) !== 'host' && strtolower($u) !== 'kapten' && strtolower($u) !== 'broadcast') {
+                        $peleton_names[] = htmlspecialchars($u);
+                        
+                        $r_dist = isset($rider_data['distance']) ? ($rider_data['distance'] / 1000) : 0;
+                        $r_speed = isset($rider_data['speed']) ? $rider_data['speed'] : 0;
+                        
+                        $peleton_stats[] = [
+                            'name' => htmlspecialchars($u),
+                            'dist' => number_format($r_dist, 2),
+                            'speed' => number_format($r_speed, 1),
+                            'is_host' => false
+                        ];
+                    }
                 }
             }
         }
     }
 
+    // 3. Susun Teks Akhir untuk UI (Flexing Peleton Text)
+    $flexing_peleton_text = "";
+    
+    // SENSOR GPX LURING: Cek jika ini hasil impor mabar teman
+    if ($data['source'] === 'PELETON_IMPORT') {
+        $parts = explode(' | ', $data['name']);
+        if (count($parts) > 1) {
+            $data['name'] = trim(str_replace('👥', '', $parts[0])); 
+            $flexing_peleton_text = trim($parts[1]);
+        } else {
+            $flexing_peleton_text = "Data Peleton (Impor Manual)";
+        }
+    } elseif (!empty($saved_participants)) {
+        // Data dari v4.0 (Record.php sudah otomatis menyuntikkan nama kapten di index 0)
+        $flexing_peleton_text = implode(', ', $saved_participants);
+    } elseif (!empty($peleton_names)) {
+        // Fallback untuk data lama (v3.0) yang belum tersimpan di DB
+        $flexing_peleton_text = $captain_name . ", " . implode(', ', $peleton_names);
+    }
+
+
+    // ==========================================
     // LOGIKA EXPORT GPX
+    // ==========================================
     if (isset($_GET['export']) && $_GET['export'] === 'gpx') {
         $polyline = $data['polyline'];
         $points = [];
@@ -149,7 +244,9 @@ try {
         exit;
     }
 
-    // LOGIKA HAPUS
+    // ==========================================
+    // LOGIKA HAPUS AKTIVITAS
+    // ==========================================
     if (isset($_POST['action']) && $_POST['action'] === 'delete') {
         $stmt = $pdo->prepare("DELETE FROM rides WHERE id = ?");
         $stmt->execute([$id]);
@@ -157,10 +254,16 @@ try {
         exit;
     }
 
-    // LOGIKA EDIT NAMA DENGAN BENTENG KEAMANAN (XSS PROTECTION)
+    // ==========================================
+    // LOGIKA EDIT NAMA (XSS PROTECTION)
+    // ==========================================
     if (isset($_POST['action']) && $_POST['action'] === 'edit') {
         $nama_baru = htmlspecialchars(strip_tags(trim($_POST['new_name'])), ENT_QUOTES, 'UTF-8');
         if (!empty($nama_baru)) {
+            // Mencegah metadata hilang saat rename judul Peleton Import
+            if ($data['source'] === 'PELETON_IMPORT' && $flexing_peleton_text !== "") {
+                $nama_baru = "👥 " . $nama_baru . " | " . $flexing_peleton_text;
+            }
             $stmt = $pdo->prepare("UPDATE rides SET name = ? WHERE id = ?");
             $stmt->execute([$nama_baru, $id]);
         }
@@ -205,7 +308,11 @@ try {
             left: -9999px; 
             top: 0;
         }
-        .minimal-item { margin-bottom: 25px; }
+        
+        .minimal-item { 
+            margin-bottom: 25px; 
+        }
+        
         .minimal-label { 
             font-size: 14px; 
             color: var(--text-color); 
@@ -213,6 +320,7 @@ try {
             font-weight: 600; 
             margin-bottom: 5px; 
         }
+        
         .minimal-value { 
             font-size: 36px; 
             font-weight: 900; 
@@ -220,7 +328,10 @@ try {
             letter-spacing: -1px;
             line-height: 1;
         }
-        .minimal-value small { font-size: 18px; }
+        
+        .minimal-value small { 
+            font-size: 18px; 
+        }
         
         /* Memaksa map Leaflet minimalis center dan fix lebarnya */
         #minimal-map {
@@ -237,7 +348,11 @@ try {
         .leaflet-container { background: transparent !important; }
         .leaflet-overlay-pane svg { overflow: visible !important; }
         
-        .minimal-logo { height: 45px; opacity: 0.9; margin-top: 5px; }
+        .minimal-logo { 
+            height: 45px; 
+            opacity: 0.9; 
+            margin-top: 5px; 
+        }
 
         /* Grid Seragam untuk Tombol Aksi */
         .action-grid {
@@ -247,6 +362,7 @@ try {
             margin-top: 25px;
             margin-bottom: 15px;
         }
+        
         .btn-grid-item {
             display: flex;
             align-items: center;
@@ -264,6 +380,26 @@ try {
             border: none;
             color: white;
             transition: all 0.2s;
+        }
+
+        /* UI Tambahan Peleton di Grid Utama */
+        .peleton-card {
+            grid-column: span 2;
+            background: rgba(52, 152, 219, 0.1);
+            border: 1px dashed #3498db;
+        }
+        
+        .dark-mode .peleton-card {
+            background: rgba(52, 152, 219, 0.05);
+            border-color: rgba(52, 152, 219, 0.3);
+        }
+        
+        .peleton-label {
+            color: #2980b9;
+        }
+        
+        .dark-mode .peleton-label {
+            color: #3498db;
         }
     </style>
 </head>
@@ -327,22 +463,35 @@ try {
                 <label>Jarak</label>
                 <span><?= number_format($data['distance'], 2) ?> <small>km</small></span>
             </div>
+            
             <div class="detail-card">
                 <label>Waktu</label>
                 <span><?= gmdate("H:i:s", $data['moving_time']) ?></span>
             </div>
+            
             <div class="detail-card">
                 <label>Kec. Rata-rata</label>
                 <span><?= number_format($data['average_speed'], 1) ?> <small>km/h</small></span>
             </div>
+            
             <div class="detail-card">
                 <label>Elevasi</label>
                 <span><?= number_format($data['total_elevation_gain'], 0) ?> <small>m</small></span>
             </div>
+            
             <div class="detail-card" style="grid-column: span 2;">
                 <label>Suhu Rata-rata</label>
                 <span><?= (isset($data['avg_temp']) && $data['avg_temp'] > 0) ? number_format($data['avg_temp'], 1) . ' <small>&deg;C</small>' : '-- <small>&deg;C</small>' ?></span>
             </div>
+
+            <?php if ($flexing_peleton_text !== ""): ?>
+                <div class="detail-card peleton-card">
+                    <label class="peleton-label">👥 Peserta Peleton</label>
+                    <span style="font-size: 13px; font-weight: normal; white-space: normal; line-height: 1.5; margin-top: 5px;">
+                        <?= htmlspecialchars($flexing_peleton_text) ?>
+                    </span>
+                </div>
+            <?php endif; ?>
         </div>
     </div>
     
@@ -353,7 +502,9 @@ try {
         
         <button onclick="generateShare('standard')" id="btn-share-std" class="btn-grid-item" style="background: var(--primary-color);">📸 SHARE MAP</button>
         <button onclick="generateShare('minimal')" id="btn-share-min" class="btn-grid-item" style="background: #34495e;">✨ SHARE STATS</button>
+        <button onclick="window.location.href='video_flex.php?id=<?= $id ?>'" class="btn-grid-item" style="background: #6f42c1;">🎬 BUAT VIDEO</button>
         <a href="?id=<?= $id ?>&export=gpx" class="btn-grid-item" style="background-color: #7f8c8d;">📥 EXPORT GPX</a>
+        
         <form method="POST" onsubmit="return confirm('Yakin ingin menghapus gowes ini, wak?');" style="margin: 0; padding: 0;">
             <input type="hidden" name="action" value="delete">
             <button type="submit" class="btn-grid-item" style="background-color: #e74c3c;">🗑️ HAPUS</button>
@@ -363,38 +514,55 @@ try {
 </div>
 
 <div id="capture-minimal">
-    <div class="minimal-item">
-        <div class="minimal-label">Jarak</div>
-        <div class="minimal-value"><?= number_format($data['distance'], 2) ?> <small>km</small></div>
-    </div>
-    
-    <div class="minimal-item">
-        <div class="minimal-label">Elevasi</div>
-        <div class="minimal-value"><?= number_format($data['total_elevation_gain'], 0) ?> <small>m</small></div>
-    </div>
-    
-    <div class="minimal-item">
-        <div class="minimal-label">Waktu</div>
-        <div class="minimal-value"><?= gmdate("H:i:s", $data['moving_time']) ?></div>
-    </div>
-    
-    <div class="minimal-item">
-        <div class="minimal-label">Kecepatan rata-rata</div>
-        <div class="minimal-value"><?= str_replace('.', ',', number_format($data['average_speed'], 1)) ?> <small>kpj</small></div>
-    </div>
 
-    <div class="minimal-item">
-        <div class="minimal-label">Suhu</div>
-        <div class="minimal-value"><?= (isset($data['avg_temp']) && $data['avg_temp'] > 0) ? str_replace('.', ',', number_format($data['avg_temp'], 1)) . ' <small>&deg;C</small>' : '-- <small>&deg;C</small>' ?></div>
-    </div>
-    
-    <?php if (!empty($peleton_names)): ?>
-    <div class="minimal-item" style="margin-top: -15px; margin-bottom: 20px;">
-        <div class="minimal-label" style="font-size: 11px; color: #f39c12; text-transform: uppercase;">🚴 Gowes Bareng</div>
-        <div style="font-size: 12px; font-weight: bold; color: var(--text-color); opacity: 0.9;">
-            Anda, <?= implode(', ', $peleton_names) ?>
+    <?php if (count($peleton_stats) > 1): ?>
+        <div style="width:100%; margin-top:-10px; margin-bottom:25px; background: rgba(52, 152, 219, 0.08); border-radius:12px; padding:15px; border: 1px dashed rgba(52, 152, 219, 0.4); text-align: left;">
+            <div style="font-size:12px; font-weight:900; color:#2980b9; margin-bottom:12px; text-align: center; letter-spacing: 1px;">🏆 HASIL PELETON</div>
+            <?php foreach($peleton_stats as $ps): ?>
+                <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:8px; border-bottom:1px solid rgba(0,0,0,0.05); padding-bottom:6px;">
+                    <span style="font-weight:bold; color:var(--text-color);"><?= $ps['is_host'] ? '🏁' : '🚴' ?> <?= $ps['name'] ?></span>
+                    <span style="color:#64748b; font-family:monospace; font-weight:bold;">
+                        <span style="color:var(--primary-color);"><?= $ps['dist'] ?>km</span> | <?= $ps['speed'] ?>kpj
+                    </span>
+                </div>
+            <?php endforeach; ?>
         </div>
-    </div>
+    <?php endif; ?>
+
+    <?php if (count($peleton_stats) <= 1): ?>
+        <div class="minimal-item">
+            <div class="minimal-label">Jarak</div>
+            <div class="minimal-value"><?= number_format($data['distance'], 2) ?> <small>km</small></div>
+        </div>
+        
+        <div class="minimal-item">
+            <div class="minimal-label">Elevasi</div>
+            <div class="minimal-value"><?= number_format($data['total_elevation_gain'], 0) ?> <small>m</small></div>
+        </div>
+        
+        <div class="minimal-item">
+            <div class="minimal-label">Waktu</div>
+            <div class="minimal-value"><?= gmdate("H:i:s", $data['moving_time']) ?></div>
+        </div>
+        
+        <div class="minimal-item">
+            <div class="minimal-label">Kecepatan rata-rata</div>
+            <div class="minimal-value"><?= str_replace('.', ',', number_format($data['average_speed'], 1)) ?> <small>kpj</small></div>
+        </div>
+
+        <div class="minimal-item">
+            <div class="minimal-label">Suhu</div>
+            <div class="minimal-value"><?= (isset($data['avg_temp']) && $data['avg_temp'] > 0) ? str_replace('.', ',', number_format($data['avg_temp'], 1)) . ' <small>&deg;C</small>' : '-- <small>&deg;C</small>' ?></div>
+        </div>
+        
+        <?php if ($flexing_peleton_text !== ""): ?>
+        <div class="minimal-item" style="margin-top: -15px; margin-bottom: 20px;">
+            <div class="minimal-label" style="font-size: 11px; color: #f39c12; text-transform: uppercase;">🚴 Gowes Bareng</div>
+            <div style="font-size: 12px; font-weight: bold; color: var(--text-color); opacity: 0.9;">
+                <?= htmlspecialchars($flexing_peleton_text) ?>
+            </div>
+        </div>
+        <?php endif; ?>
     <?php endif; ?>
 
     <div id="minimal-map"></div>
@@ -421,31 +589,55 @@ try {
     });
 
     // ---------------------------------------------------------
-    // LOGIKA UI LAINNYA
+    // LOGIKA UI EDIT NAMA
     // ---------------------------------------------------------
     function toggleEdit() {
         const viewDiv = document.getElementById('view-title');
         const editDiv = document.getElementById('edit-title');
+        
         if (editDiv.style.display === 'none') {
-            editDiv.style.display = 'block'; viewDiv.style.display = 'none';
+            editDiv.style.display = 'block'; 
+            viewDiv.style.display = 'none';
         } else {
-            editDiv.style.display = 'none'; viewDiv.style.display = 'block';
+            editDiv.style.display = 'none'; 
+            viewDiv.style.display = 'block';
         }
     }
 
+    // ---------------------------------------------------------
+    // RENDER PETA JALUR (POLYLINE)
+    // ---------------------------------------------------------
     function decodePolyline(encoded) {
         if (!encoded) return [];
         if (encoded.startsWith('[')) {
             try { return JSON.parse(encoded); } catch(e) { return []; }
         }
-        var points = []; var index = 0, len = encoded.length; var lat = 0, lng = 0;
+        
+        var points = []; 
+        var index = 0, len = encoded.length; 
+        var lat = 0, lng = 0;
+        
         while (index < len) {
             var b, shift = 0, result = 0;
-            do { b = encoded.charCodeAt(index++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
-            var dlat = ((result & 1) ? ~(result >> 1) : (result >> 1)); lat += dlat;
+            do { 
+                b = encoded.charCodeAt(index++) - 63; 
+                result |= (b & 0x1f) << shift; 
+                shift += 5; 
+            } while (b >= 0x20);
+            
+            var dlat = ((result & 1) ? ~(result >> 1) : (result >> 1)); 
+            lat += dlat;
+            
             shift = 0; result = 0;
-            do { b = encoded.charCodeAt(index++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
-            var dlng = ((result & 1) ? ~(result >> 1) : (result >> 1)); lng += dlng;
+            do { 
+                b = encoded.charCodeAt(index++) - 63; 
+                result |= (b & 0x1f) << shift; 
+                shift += 5; 
+            } while (b >= 0x20);
+            
+            var dlng = ((result & 1) ? ~(result >> 1) : (result >> 1)); 
+            lng += dlng;
+            
             points.push([lat / 1e5, lng / 1e5]);
         }
         return points;
@@ -483,7 +675,7 @@ try {
     }
 
     // ==========================================
-    // EPIC 3: ENGINE UPLOAD BROADCAST PELETON
+    // ENGINE UPLOAD BROADCAST PELETON
     // ==========================================
     function broadcastPeleton() {
         const btn = document.getElementById('btn-broadcast');
@@ -549,7 +741,9 @@ try {
         }, 100);
     }
 
-    // ENGINE PEMBUAT GAMBAR LOKAL
+    // ==========================================
+    // ENGINE PEMBUAT GAMBAR LOKAL (SHARE)
+    // ==========================================
     function generateShare(mode) {
         const btnStd = document.getElementById('btn-share-std');
         const btnMin = document.getElementById('btn-share-min');

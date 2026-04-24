@@ -1,5 +1,5 @@
 <?php
-// record.php - GPS Tracker Kayooh (v3.0 - Live Tracking Telegram, Dual-Interval, Peleton Radar, Auto-Flexing)
+// record.php - GPS Tracker Kayooh (v4.0 - Live Telegram, Peleton Radar, Auto-Flexing & Banting Sesi)
 session_start();
 $db_file = __DIR__ . '/kayooh.sqlite';
 
@@ -14,7 +14,7 @@ if (!isset($_SESSION['is_logged_in']) || $_SESSION['is_logged_in'] !== true) {
 $room_id = preg_replace('/[^a-zA-Z0-9]/', '', $_GET['room'] ?? 'SINGLE_MODE');
 
 // ==========================================
-// KONEKSI DATABASE & AMBIL PENGATURAN TELEGRAM
+// KONEKSI DATABASE & AMBIL PENGATURAN 
 // ==========================================
 try {
     $pdo = new PDO("sqlite:" . $db_file);
@@ -25,20 +25,24 @@ try {
 
 $tg_token = ''; 
 $tg_chat_id = '';
+$captain_name = 'Kapten'; // Default fallback jika belum diatur di Dashboard
+
 try {
-    $stmt = $pdo->query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('telegram_bot_token', 'telegram_chat_id')");
+    $stmt = $pdo->query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('telegram_bot_token', 'telegram_chat_id', 'captain_name')");
     while ($row = $stmt->fetch()) {
         if ($row['setting_key'] === 'telegram_bot_token') $tg_token = $row['setting_value'];
-        if ($row['setting_key'] === 'telegram_chat_id') $tg_chat_id = $row['setting_value'];
+        if ($row['setting_key'] === 'telegram_chat_id')   $tg_chat_id = $row['setting_value'];
+        if ($row['setting_key'] === 'captain_name' && trim($row['setting_value']) !== '') {
+            $captain_name = trim($row['setting_value']);
+        }
     }
 } catch (PDOException $e) {
-    // Abaikan jika belum ada tabel (fallback aman jika user lupa jalankan upgrade_db)
+    // Abaikan jika belum ada tabel (fallback aman jika user lupa jalankan update_db)
 }
 
 // ==========================================
 // HANDLER AJAX TELEGRAM (LIVE LOCATION v3.0)
 // ==========================================
-// Backend PHP berkomunikasi dengan API Telegram agar Token aman dari Frontend
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['tg_action'])) {
     header('Content-Type: application/json');
     if (empty($tg_token) || empty($tg_chat_id)) {
@@ -46,17 +50,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['tg_action'])) {
         exit;
     }
 
-    $action = $_POST['tg_action'];
-    $lat = $_POST['lat'] ?? 0;
-    $lon = $_POST['lon'] ?? 0;
-    $msg_id = $_POST['message_id'] ?? null;
+    $action  = $_POST['tg_action'];
+    $lat     = $_POST['lat'] ?? 0;
+    $lon     = $_POST['lon'] ?? 0;
+    $msg_id  = $_POST['message_id'] ?? null;
     $tg_room = preg_replace('/[^a-zA-Z0-9]/', '', $_POST['room'] ?? 'SINGLE_MODE');
     
     $api_url = "https://api.telegram.org/bot{$tg_token}/";
 
-    // Layer 2 (Web Radar) - Tombol Hybrid yang menempel pada Live Location, sekarang Dinamis!
     $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
-    $host = $_SERVER['HTTP_HOST'];
+    $host     = $_SERVER['HTTP_HOST'];
     $radar_url = $protocol . $host . "/guest.php?room=" . $tg_room; 
     
     $keyboard = [
@@ -69,25 +72,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['tg_action'])) {
     if ($action === 'start') {
         $url = $api_url . "sendLocation";
         $data = [
-            'chat_id' => $tg_chat_id,
-            'latitude' => $lat,
-            'longitude' => $lon,
-            'live_period' => 28800, // Aktif maksimal 8 Jam
+            'chat_id'      => $tg_chat_id,
+            'latitude'     => $lat,
+            'longitude'    => $lon,
+            'live_period'  => 28800,
             'reply_markup' => $reply_markup
         ];
     } elseif ($action === 'update') {
         $url = $api_url . "editMessageLiveLocation";
         $data = [
-            'chat_id' => $tg_chat_id,
-            'message_id' => $msg_id,
-            'latitude' => $lat,
-            'longitude' => $lon,
+            'chat_id'      => $tg_chat_id,
+            'message_id'   => $msg_id,
+            'latitude'     => $lat,
+            'longitude'    => $lon,
             'reply_markup' => $reply_markup
         ];
     } elseif ($action === 'stop') {
         $url = $api_url . "stopMessageLiveLocation";
         $data = [
-            'chat_id' => $tg_chat_id,
+            'chat_id'    => $tg_chat_id,
             'message_id' => $msg_id
         ];
     }
@@ -114,13 +117,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['tg_action'])) {
 // ==========================================
 function encodePolyline($points) {
     $encodedString = '';
-    $prevLat = 0; $prevLng = 0;
+    $prevLat = 0; 
+    $prevLng = 0;
     foreach ($points as $point) {
         $lat = round($point[0] * 1e5);
         $lng = round($point[1] * 1e5);
         $dLat = $lat - $prevLat;
         $dLng = $lng - $prevLng;
-        $prevLat = $lat; $prevLng = $lng;
+        $prevLat = $lat; 
+        $prevLng = $lng;
+        
         foreach ([$dLat, $dLng] as $val) {
             $val = $val < 0 ? ~($val << 1) : ($val << 1);
             while ($val >= 0x20) {
@@ -140,7 +146,8 @@ function calculateElevationGain($points) {
     if (empty($points)) return 0;
 
     $step = max(1, floor(count($points) / 50));
-    $sampledLats = []; $sampledLngs = [];
+    $sampledLats = []; 
+    $sampledLngs = [];
 
     for ($i = 0; $i < count($points); $i += $step) {
         $sampledLats[] = round($points[$i][0], 5);
@@ -182,11 +189,9 @@ function calculateElevationGain($points) {
 function matchRouteOSRM($points) {
     if (count($points) < 2) return $points;
 
-    // Batasi titik agar tidak ditolak oleh API OSRM (Max ~100 koordinat)
     $step = max(1, ceil(count($points) / 90));
     $sampled = [];
     for ($i = 0; $i < count($points); $i += $step) {
-        // Format OSRM: lon,lat
         $sampled[] = $points[$i][1] . ',' . $points[$i][0];
     }
     if (end($sampled) !== end($points)[1] . ',' . end($points)[0]) {
@@ -200,7 +205,7 @@ function matchRouteOSRM($points) {
     curl_setopt($ch, CURLOPT_URL, $url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-    curl_setopt($ch, CURLOPT_USERAGENT, 'KayoohTracker/3.0'); // Identitas aplikasi (Wajib untuk OSRM)
+    curl_setopt($ch, CURLOPT_USERAGENT, 'KayoohTracker/4.0');
     $response = curl_exec($ch);
     $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
@@ -212,40 +217,49 @@ function matchRouteOSRM($points) {
             foreach ($data['matchings'] as $matching) {
                 if (isset($matching['geometry']['coordinates'])) {
                     foreach ($matching['geometry']['coordinates'] as $coord) {
-                        $matched_points[] = [$coord[1], $coord[0]]; // Kembalikan ke format lat,lon
+                        $matched_points[] = [$coord[1], $coord[0]];
                     }
                 }
             }
             if (count($matched_points) > 0) return $matched_points;
         }
     }
-    return $points; // Fallback: Jika API down atau sinyal jelek, gunakan data mentah
+    return $points;
 }
 
-// Proses Simpan Data via AJAX & Auto-Flexing Telegram (EPIC 3)
+// ==========================================
+// PROSES SIMPAN DATA AKTIVITAS (AJAX POST)
+// ==========================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['distance'])) {
     try {
         $raw_points = json_decode($_POST['polyline'], true);
         if (!is_array($raw_points)) $raw_points = [];
         
-        $distance = (float)$_POST['distance'];
+        $distance    = (float)$_POST['distance'];
         $moving_time = (int)$_POST['moving_time'];
-        $avg_speed = (float)$_POST['avg_speed'];
-        $max_speed = (float)$_POST['max_speed'];
-        $avg_temp = isset($_POST['avg_temp']) ? (float)$_POST['avg_temp'] : 0; 
+        $avg_speed   = (float)$_POST['avg_speed'];
+        $max_speed   = (float)$_POST['max_speed'];
+        $avg_temp    = isset($_POST['avg_temp']) ? (float)$_POST['avg_temp'] : 0; 
         $active_mode = preg_replace('/[^a-zA-Z0-9]/', '', $_POST['room_id'] ?? 'SINGLE_MODE');
 
-        // KOREKSI RUTE: Tempelkan ke jalan raya (Snap to Road)
-        $final_points = matchRouteOSRM($raw_points);
+        // --- TANGKAP DATA PESERTA PELETON ---
+        $participants_json = NULL;
+        if (isset($_POST['participants']) && !empty($_POST['participants'])) {
+            $parts_array = json_decode($_POST['participants'], true);
+            if (is_array($parts_array) && count($parts_array) > 0) {
+                $participants_json = json_encode($parts_array);
+            }
+        }
 
+        $final_points     = matchRouteOSRM($raw_points);
         $encoded_polyline = encodePolyline($final_points);
-        // Elevasi dihitung berdasarkan titik yang sudah dirapikan
-        $elevation_gain = calculateElevationGain($final_points); 
+        $elevation_gain   = calculateElevationGain($final_points); 
 
+        // Update Syntax INSERT untuk menampung kolom `participants`
         $stmt = $pdo->prepare("INSERT INTO rides (
             name, distance, moving_time, average_speed, max_speed, 
-            total_elevation_gain, avg_temp, start_date, polyline, source
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'KAYOOH')");
+            total_elevation_gain, avg_temp, start_date, polyline, source, participants
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'KAYOOH', ?)");
 
         $name = "Gowes " . date('d/m/Y H:i');
         $stmt->execute([
@@ -257,11 +271,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['distance'])) {
             $elevation_gain,
             $avg_temp,
             date('Y-m-d H:i:s'),
-            $encoded_polyline
+            $encoded_polyline,
+            $participants_json 
         ]);
 
         // =======================================================
-        // EPIC 3: AUTO-DISTRIBUTION (GROUP FLEXING KE TELEGRAM)
+        // AUTO-DISTRIBUTION TELEGRAM (Dengan Daftar Peserta)
         // =======================================================
         if (!empty($tg_token) && !empty($tg_chat_id)) {
             $f_time = gmdate("H:i:s", $moving_time);
@@ -271,7 +286,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['distance'])) {
             $f_elev = $elevation_gain . " m";
             $f_temp = $avg_temp . " °C";
 
-            // Rakit pesan estetik
             $msg = "🏁 <b>Aktivitas Kayooh Tersimpan!</b>\n\n";
             $msg .= "🚴‍♂️ <b>{$name}</b>\n";
             $msg .= "📏 Jarak: <b>{$f_dist}</b>\n";
@@ -281,19 +295,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['distance'])) {
             $msg .= "🚀 Maksimal: <b>{$f_max}</b>\n";
             $msg .= "🌡 Suhu: <b>{$f_temp}</b>\n";
 
-            // Tambahkan catatan jika mode Peleton
+            // Tambahkan list peserta jika ada
+            if ($participants_json !== NULL && isset($parts_array)) {
+                $p_list = implode(", ", $parts_array);
+                $msg .= "👥 Peleton: <b>{$p_list}</b>\n";
+            }
+
             if ($active_mode !== 'SINGLE_MODE') {
-                $msg .= "\n<i>* Catatan: Karena gowes mode Peleton, statistik akhir di atas diselaraskan mengikuti metrik GPS milik Kapten/Host.</i>";
+                $msg .= "\n<i>* Catatan: Karena gowes mode Peleton, statistik akhir diselaraskan mengikuti metrik GPS Kapten.</i>";
             }
 
             $url_tg = "https://api.telegram.org/bot{$tg_token}/sendMessage";
             $data_tg = [
-                'chat_id' => $tg_chat_id,
-                'text' => $msg,
+                'chat_id'    => $tg_chat_id,
+                'text'       => $msg,
                 'parse_mode' => 'HTML'
             ];
 
-            // Tembak pesan di background (Timeout 3 detik agar UI tidak hang)
             $ch = curl_init($url_tg);
             curl_setopt($ch, CURLOPT_POST, 1);
             curl_setopt($ch, CURLOPT_POSTFIELDS, $data_tg);
@@ -324,14 +342,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['distance'])) {
     <link rel="manifest" href="assets/site.webmanifest">
 </head>
 <body style="background-color: var(--background-color);">
-    <script>if(localStorage.getItem('theme') === 'dark') document.body.classList.add('dark-mode');</script>
+    <script>
+        if(localStorage.getItem('theme') === 'dark') {
+            document.body.classList.add('dark-mode');
+        }
+    </script>
 
 <div class="record-screen">
     <div class="header" style="margin-bottom: 10px;">
         <img src="assets/kayooh.png" alt="Kayooh" class="nav-logo">
         <div class="header-actions">
             <button onclick="toggleTheme()" class="theme-toggle" id="theme-icon">🌙</button>
-            <a href="dashboard.php" class="logout-link" onclick="if(confirm('Batalkan rekaman ini? Data akan hilang selamanya.')) { localStorage.removeItem('kayooh_backup'); return true; } return false;">BATAL</a>
+            <a href="dashboard.php" class="logout-link" onclick="if(confirm('Batalkan rekaman ini? Data akan hilang selamanya.')) { localStorage.removeItem('kayooh_backup'); localStorage.removeItem('active_session'); return true; } return false;">BATAL</a>
         </div>
     </div>
 
@@ -377,24 +399,25 @@ let isRecording = false;
 let wakeLock = null; 
 let isAutoPaused = false;
 
-// Variabel Waktu Presisi (Timestamp)
+// Variabel Waktu
 let secondsElapsed = 0; 
 let accumulatedTimeMs = 0; 
 let currentStartTimeMs = 0; 
 
-// Variabel Suhu (Sampling Interval 15 Menit)
+// Variabel Suhu
 let tempLog = []; 
 let lastTempFetchTime = 0;
-let isFetchingTemp = false; // Mencegah API ketembak dobel
+let isFetchingTemp = false; 
 
-// --- VARIABEL DUAL-INTERVAL (TELEGRAM v3.0) ---
+// Variabel Telegram
 const isTgEnabled = <?= (!empty($tg_token) && !empty($tg_chat_id)) ? 'true' : 'false' ?>;
 let tgMessageId = null;
 let lastTgSyncTime = 0;
 
-// --- VARIABEL RADAR PELETON (EPIC 2) ---
+// Variabel Data Diri & Peleton
+const captainName = <?= json_encode($captain_name) ?>;
 const activeRoomId = "<?= $room_id ?>";
-const activeUser = "Host"; // Admin selalu Host
+const activeUser = captainName; // Otomatis menggunakan nama Kapten di radar
 let lastRadarSyncTime = 0;
 
 const btnMain = document.getElementById('btn-main');
@@ -402,14 +425,14 @@ const btnSave = document.getElementById('btn-save');
 const gpsInfo = document.getElementById('gps-info');
 
 // ---------------------------------------------------------
-// FUNGSI KOMUNIKASI TELEGRAM AJAX (v3.0)
+// FUNGSI AJAX
 // ---------------------------------------------------------
 function triggerTelegram(action, lat = 0, lon = 0) {
     if (!isTgEnabled) return;
     
     const formData = new FormData();
     formData.append('tg_action', action);
-    formData.append('room', activeRoomId); // Kirim Room ID untuk link radar di Telegram
+    formData.append('room', activeRoomId); 
     formData.append('lat', lat);
     formData.append('lon', lon);
     if (tgMessageId) formData.append('message_id', tgMessageId);
@@ -419,15 +442,12 @@ function triggerTelegram(action, lat = 0, lon = 0) {
         .then(data => {
             if (data.status === 'success' && data.message_id) {
                 tgMessageId = data.message_id;
-                saveBlackBox(); // Amankan Message ID agar tidak hilang kalau ter-refresh
+                saveBlackBox(); 
             }
         })
         .catch(e => console.error("Telegram API Error:", e));
 }
 
-// ---------------------------------------------------------
-// FUNGSI SINKRONISASI RADAR PELETON (EPIC 2)
-// ---------------------------------------------------------
 function triggerRadarSync(lat, lon, speed) {
     const formData = new FormData();
     formData.append('room', activeRoomId);
@@ -440,9 +460,6 @@ function triggerRadarSync(lat, lon, speed) {
         .catch(e => console.error("Radar Sync Error:", e));
 }
 
-// ---------------------------------------------------------
-// FUNGSI FETCH SUHU (API OPEN-METEO)
-// ---------------------------------------------------------
 async function fetchTemperature(lat, lon) {
     try {
         const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
@@ -455,7 +472,7 @@ async function fetchTemperature(lat, lon) {
 }
 
 // ---------------------------------------------------------
-// FUNGSI BLACK BOX (AUTO-SAVE)
+// FUNGSI BLACK BOX
 // ---------------------------------------------------------
 function saveBlackBox() {
     if (routePath.length > 0) {
@@ -469,7 +486,7 @@ function saveBlackBox() {
             lastTempFetchTime: lastTempFetchTime,
             tgMessageId: tgMessageId,          
             lastTgSyncTime: lastTgSyncTime,    
-            lastRadarSyncTime: lastRadarSyncTime // v3.0 Save Radar State
+            lastRadarSyncTime: lastRadarSyncTime 
         }));
     }
 }
@@ -485,12 +502,8 @@ function restoreBlackBox() {
                 secondsElapsed = data.time || 0;
                 maxSpeed = data.maxSpeed || 0;
                 lastCoord = data.lastCoord || null;
-                
-                // Pemulihan Log Suhu
                 tempLog = data.tempLog || []; 
                 lastTempFetchTime = data.lastTempFetchTime || 0;
-                
-                // Pemulihan State Telegram & Radar v3.0
                 tgMessageId = data.tgMessageId || null; 
                 lastTgSyncTime = data.lastTgSyncTime || 0;
                 lastRadarSyncTime = data.lastRadarSyncTime || 0;
@@ -505,7 +518,7 @@ function restoreBlackBox() {
                 document.getElementById('display-time').textContent = `${h}:${m}:${s}`;
                 document.getElementById('display-speed').textContent = "0.0";
 
-                gpsInfo.innerHTML = '<span style="color: #e67e22; font-weight: bold;">⚠️ SESI DIPULIHKAN (BLACK BOX)</span>';
+                gpsInfo.innerHTML = '<span style="color: #e67e22; font-weight: bold;">⚠️ SESI DIPULIHKAN</span>';
                 btnMain.textContent = "▶️ LANJUTKAN RIDE";
                 btnMain.classList.replace('btn-stop', 'btn-start');
                 btnSave.style.display = 'flex';
@@ -517,7 +530,7 @@ function restoreBlackBox() {
 }
 
 // ---------------------------------------------------------
-// FUNGSI TOGGLE TEMA & INISIALISASI
+// UI & PERIPHERAL
 // ---------------------------------------------------------
 function toggleTheme() {
     document.body.classList.toggle('dark-mode');
@@ -533,9 +546,6 @@ window.addEventListener('DOMContentLoaded', () => {
     restoreBlackBox(); 
 });
 
-// ---------------------------------------------------------
-// FUNGSI WAKE LOCK (MENCEGAH LAYAR MATI)
-// ---------------------------------------------------------
 async function requestWakeLock() {
     if ('wakeLock' in navigator) {
         try {
@@ -553,14 +563,15 @@ function releaseWakeLock() {
     }
 }
 
+// --- FIX WAKE LOCK BOMB (VISIBILITY LISTENER) ---
 document.addEventListener('visibilitychange', async () => {
-    if (isRecording && wakeLock !== null && document.visibilityState === 'visible') {
-        await requestWakeLock();
+    if (isRecording && document.visibilityState === 'visible') {
+        await requestWakeLock(); // Pastikan wake lock langsung ditembak ulang!
     }
 });
 
 // ---------------------------------------------------------
-// FUNGSI UTAMA TRACKING (DENGAN SMART AUTO-PAUSE & TIMESTAMP TIMER)
+// FUNGSI UTAMA TRACKING
 // ---------------------------------------------------------
 function calculateDistance(lat1, lon1, lat2, lon2) {
     const R = 6371; 
@@ -599,6 +610,9 @@ function startTracking() {
         return;
     }
 
+    // --- FITUR AUTO-REDIRECT: CATAT SESI AKTIF ---
+    localStorage.setItem('active_session', activeRoomId);
+
     isRecording = true;
     isAutoPaused = false;
     currentStartTimeMs = Date.now(); 
@@ -620,7 +634,6 @@ function startTracking() {
             document.getElementById('display-speed').textContent = currentSpeed.toFixed(1);
             if (currentSpeed > maxSpeed) maxSpeed = currentSpeed;
 
-            // [INTERVAL BERAT] LOGIKA SAMPLING SUHU (AWAL & INTERVAL 15 MENIT / 900 DETIK)
             if (!isFetchingTemp) {
                 if (tempLog.length === 0) {
                     isFetchingTemp = true;
@@ -640,7 +653,6 @@ function startTracking() {
                 }
             }
 
-            // [INTERVAL MENENGAH] TELEGRAM LIVE LOCATION (1 Menit / 60 Detik)
             if (isTgEnabled && !isAutoPaused) {
                 if (!tgMessageId) {
                     triggerTelegram('start', latitude, longitude);
@@ -651,7 +663,6 @@ function startTracking() {
                 }
             }
 
-            // [INTERVAL KILAT] WEB RADAR SYNC (Tiap 3 Detik)
             if (!isAutoPaused && (secondsElapsed - lastRadarSyncTime >= 3 || !lastRadarSyncTime)) {
                 triggerRadarSync(latitude, longitude, currentSpeed);
                 lastRadarSyncTime = secondsElapsed;
@@ -711,7 +722,6 @@ function stopTracking() {
     }
     secondsElapsed = Math.floor(accumulatedTimeMs / 1000); 
     
-    // Terminasi Telegram Map saat Stop Ride ditekan
     if (isTgEnabled && tgMessageId) {
         triggerTelegram('stop');
     }
@@ -726,12 +736,31 @@ btnMain.addEventListener('click', () => {
     else stopTracking();
 });
 
+// ---------------------------------------------------------
+// EKSEKUSI SIMPAN (PROMPT PELETON)
+// ---------------------------------------------------------
 btnSave.addEventListener('click', async () => {
-    btnSave.textContent = "⏳ MENGOREKSI RUTE & SUHU...";
+    // Tanyakan nama peserta JIKA mode peleton
+    let finalParticipants = [];
+    if (activeRoomId !== 'SINGLE_MODE') {
+        // Otomatis masukkan Nama Kapten dari database
+        let userInput = prompt("🚴‍♂️ Gowes Peleton Selesai!\n\nMasukkan nama-nama peserta (pisahkan dengan koma):", captainName + ", ");
+        
+        if (userInput) {
+            // Pecah string, bersihkan spasi, hapus yang kosong
+            finalParticipants = userInput.split(',').map(s => s.trim()).filter(s => s.length > 0);
+        }
+        
+        // Kalau user iseng klik Cancel / input kosong, kita kasih default nama kapten
+        if (finalParticipants.length === 0) {
+            finalParticipants = [captainName];
+        }
+    }
+
+    btnSave.textContent = "⏳ MENGOREKSI RUTE...";
     btnSave.style.opacity = "0.7";
     btnSave.style.pointerEvents = "none";
 
-    // AMBIL SUHU AKHIR SEBAGAI PENUTUP SAMPLING
     if (lastCoord) {
         let endTemp = await fetchTemperature(lastCoord.lat, lastCoord.lon);
         if (endTemp !== null) {
@@ -739,7 +768,6 @@ btnSave.addEventListener('click', async () => {
         }
     }
 
-    // HITUNG SUHU RATA-RATA KESELURUHAN
     let finalAvgTemp = 0;
     if (tempLog.length > 0) {
         let sum = tempLog.reduce((a, b) => a + b, 0);
@@ -754,8 +782,13 @@ btnSave.addEventListener('click', async () => {
     formData.append('avg_speed', avgSpeed);
     formData.append('max_speed', maxSpeed);
     formData.append('avg_temp', finalAvgTemp.toFixed(1)); 
-    formData.append('room_id', activeRoomId); // Tambahan EPIC 3 (Kirim ID Room saat save)
+    formData.append('room_id', activeRoomId); 
     formData.append('polyline', JSON.stringify(routePath));
+    
+    // Kirim JSON peserta jika ada
+    if (finalParticipants.length > 0) {
+        formData.append('participants', JSON.stringify(finalParticipants));
+    }
 
     fetch('record.php', {
         method: 'POST',
@@ -765,6 +798,8 @@ btnSave.addEventListener('click', async () => {
     .then(data => {
         if (data.status === 'success') {
             localStorage.removeItem('kayooh_backup'); 
+            // --- FITUR AUTO-REDIRECT: HAPUS SESI AKTIF ---
+            localStorage.removeItem('active_session'); 
             window.location.href = 'dashboard.php';
         } else {
             alert("Gagal simpan: " + data.message);

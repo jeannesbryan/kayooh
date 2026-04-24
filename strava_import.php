@@ -1,5 +1,5 @@
 <?php
-// strava_import.php - Sinkronisasi Strava (Dark Mode & PWA Ready)
+// strava_import.php - Sinkronisasi Strava (Pagination Loop, Dark Mode & PWA Ready v4.0)
 session_start();
 $db_file = __DIR__ . '/kayooh.sqlite';
 
@@ -66,7 +66,7 @@ if (isset($_GET['code']) && $client_id && $client_secret) {
 }
 
 // ==========================================
-// 3. PROSES SINKRONISASI KE SQLITE
+// 3. PROSES SINKRONISASI KE SQLITE (PAGINATION LOOP)
 // ==========================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_sync'])) {
     $token = trim($_POST['access_token']);
@@ -75,57 +75,92 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_sync'])) {
         $pesan = "Token tidak boleh kosong, wak!";
         $status = 'error';
     } else {
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, "https://www.strava.com/api/v3/athlete/activities?per_page=50");
-        curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: Bearer $token"]);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        $response = curl_exec($ch);
-        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
+        try {
+            $pdo = new PDO("sqlite:" . $db_file);
+            $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            
+            $inserted = 0; 
+            $skipped = 0;
+            $page = 1;
+            $per_page = 200; // Limit maksimal dari Strava per halaman
+            $has_more_data = true;
+            $has_api_error = false;
+            $error_message = "";
 
-        $activities = json_decode($response, true);
+            $stmt = $pdo->prepare("INSERT INTO rides (strava_id, name, distance, moving_time, average_speed, max_speed, total_elevation_gain, start_date, polyline, source) 
+                                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'STRAVA')");
+            $check = $pdo->prepare("SELECT id FROM rides WHERE strava_id = ?");
 
-        if ($http_code === 200 && is_array($activities)) {
-            try {
-                $pdo = new PDO("sqlite:" . $db_file);
-                $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-                
-                $inserted = 0; $skipped = 0;
-                $stmt = $pdo->prepare("INSERT INTO rides (strava_id, name, distance, moving_time, average_speed, max_speed, total_elevation_gain, start_date, polyline, source) 
-                                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'STRAVA')");
+            // Loop untuk menarik semua halaman dari Strava
+            while ($has_more_data) {
+                $ch = curl_init();
+                curl_setopt($ch, CURLOPT_URL, "https://www.strava.com/api/v3/athlete/activities?page={$page}&per_page={$per_page}");
+                curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: Bearer $token"]);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                $response = curl_exec($ch);
+                $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                curl_close($ch);
 
-                foreach ($activities as $act) {
-                    if (isset($act['type']) && ($act['type'] === 'Ride' || $act['type'] === 'VirtualRide')) {
-                        $check = $pdo->prepare("SELECT id FROM rides WHERE strava_id = ?");
-                        $check->execute([$act['id']]);
-                        
-                        if (!$check->fetch()) {
-                            $stmt->execute([
-                                $act['id'], $act['name'], ($act['distance'] / 1000), 
-                                $act['moving_time'], ($act['average_speed'] * 3.6), 
-                                ($act['max_speed'] * 3.6), $act['total_elevation_gain'], 
-                                $act['start_date_local'], ($act['map']['summary_polyline'] ?? '')
-                            ]);
-                            $inserted++;
-                        } else {
-                            $skipped++;
+                $activities = json_decode($response, true);
+
+                if ($http_code === 200 && is_array($activities)) {
+                    // Jika array kosong, berarti data sudah habis ditarik
+                    if (count($activities) === 0) {
+                        $has_more_data = false;
+                        break;
+                    }
+
+                    foreach ($activities as $act) {
+                        // Hanya ambil tipe Ride atau VirtualRide
+                        if (isset($act['type']) && ($act['type'] === 'Ride' || $act['type'] === 'VirtualRide')) {
+                            $check->execute([$act['id']]);
+                            
+                            // Hindari duplikasi
+                            if (!$check->fetch()) {
+                                $stmt->execute([
+                                    $act['id'], $act['name'], ($act['distance'] / 1000), 
+                                    $act['moving_time'], ($act['average_speed'] * 3.6), 
+                                    ($act['max_speed'] * 3.6), $act['total_elevation_gain'], 
+                                    $act['start_date_local'], ($act['map']['summary_polyline'] ?? '')
+                                ]);
+                                $inserted++;
+                            } else {
+                                $skipped++;
+                            }
                         }
                     }
-                }
-                $pesan = "Mantap! $inserted gowes baru disedot. $skipped data dilewati.";
-                $status = 'success';
+                    
+                    // Jika data yang ditarik kurang dari 200, berarti ini halaman terakhir
+                    if (count($activities) < $per_page) {
+                        $has_more_data = false;
+                    } else {
+                        $page++; // Lanjut tembak halaman berikutnya
+                    }
 
-            } catch (PDOException $e) {
-                $pesan = "Error Database: " . $e->getMessage();
+                } else {
+                    // Tangani error API dari Strava
+                    $has_api_error = true;
+                    $err = $activities['message'] ?? 'Tidak diketahui';
+                    if (strpos($err, 'Authorization Error') !== false) {
+                        $error_message = "Gagal: Token tidak punya izin. Silakan gunakan tombol Dapatkan Token Sakti.";
+                    } else {
+                        $error_message = "Gagal pada halaman {$page}: " . $err;
+                    }
+                    break; // Berhenti nge-loop jika kena limit/error
+                }
+            } // Akhir dari While Loop
+
+            if (!$has_api_error) {
+                $total_pages = $page - ($has_more_data ? 0 : 1);
+                $pesan = "Mantap! $inserted gowes baru disedot dari $total_pages halaman. $skipped data dilewati.";
+                $status = 'success';
+            } else {
+                $pesan = $error_message;
                 $status = 'error';
             }
-        } else {
-            $error_msg = $activities['message'] ?? 'Tidak diketahui';
-            if (strpos($error_msg, 'Authorization Error') !== false) {
-                $pesan = "Gagal: Token tidak punya izin. Silakan gunakan tombol Dapatkan Token Sakti.";
-            } else {
-                $pesan = "Gagal: " . $error_msg;
-            }
+
+        } catch (PDOException $e) {
+            $pesan = "Error Database: " . $e->getMessage();
             $status = 'error';
         }
     }
