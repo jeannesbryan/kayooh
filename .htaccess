@@ -1,18 +1,17 @@
-# Menutup akses ke file sensitif dari browser
-<FilesMatch "\.(sqlite|lock|env|log|sh)$">
-    Order allow,deny
-    Deny from all
+# 1. Menutup akses ke file sensitif (Update Sintaks Apache 2.4 + Proteksi JSON)
+<FilesMatch "\.(sqlite|lock|env|log|sh|json)$">
+    Require all denied
 </FilesMatch>
 
-# Mencegah penampilan daftar isi direktori
+# 2. Mencegah penampilan daftar isi direktori
 Options -Indexes
 
-# Mengamankan Service Worker
+# 3. Mengamankan Service Worker (Biar update PWA langsung masuk)
 <Files "sw.js">
     Header set Cache-Control "max-age=0, no-cache, no-store, must-revalidate"
 </Files>
 
-# Mengatur agar Header dikirim dengan aman
+# 4. Mengatur agar Header dikirim dengan aman (Anti XSS & Clickjacking)
 <IfModule mod_headers.c>
     Header set X-XSS-Protection "1; mode=block"
     Header set X-Content-Type-Options "nosniff"
