@@ -1,5 +1,5 @@
 <?php
-// install.php - Setup Database & Registrasi Admin Kayooh (v4.0)
+// install.php - Setup Database & Registrasi Admin Kayooh
 session_start();
 
 $lock_file = __DIR__ . '/install.lock';
@@ -34,7 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($pesan_error)) {
             $pdo = new PDO("sqlite:" . $db_file);
             $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-            // 1. EKSEKUSI PEMBUATAN TABEL LENGKAP (V4 + V5 Ready)
+            // 1. EKSEKUSI PEMBUATAN TABEL LENGKAP
             $pdo->exec("
                 CREATE TABLE IF NOT EXISTS users (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -82,14 +82,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($pesan_error)) {
             $stmt->execute([$email, $hashed_password]);
 
             // 4. KUNCI INSTALASI
-            file_put_contents($lock_file, 'Instalasi Kayooh v5.0 selesai pada ' . date('Y-m-d H:i:s'));
+            file_put_contents($lock_file, 'Instalasi Kayooh selesai pada ' . date('Y-m-d H:i:s'));
 
             $_SESSION['is_logged_in'] = true;
             header('Location: dashboard.php');
             exit;
 
         } catch (PDOException $e) {
-            $pesan_error = 'Gagal membuat database v5.0: ' . $e->getMessage();
+            $pesan_error = 'Gagal membuat database: ' . $e->getMessage();
         }
     }
 }
@@ -99,7 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($pesan_error)) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Setup Kayooh v4.0</title>
+    <title>Setup Kayooh</title>
     <link rel="stylesheet" href="assets/style.css">
     <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32x32.png">

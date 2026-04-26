@@ -1,5 +1,5 @@
 <?php
-// record_peleton.php - Kayooh v5.0 (Ultimate Peleton Mode - Fixed CSS Offside)
+// record_peleton.php - Kayooh v5.0 (Ultimate Peleton Mode - Fixed Anchor & CSS Offside)
 session_start();
 $db_file = __DIR__ . '/kayooh.sqlite';
 
@@ -36,13 +36,13 @@ $captain_name = $settings['captain_name'] ?? 'Kapten';
     <style>
         :root { --primary: #3498db; --dark: #1a1a1a; --card: #2c3e50; --accent: #e74c3c; }
         
-        /* FIX OFFSIDE: Terapkan box-sizing ke semua elemen agar padding masuk ke dalam ukuran width */
         * { box-sizing: border-box; }
         
         body { font-family: 'Segoe UI', sans-serif; background: var(--dark); color: white; margin: 0; overflow: hidden; }
         #map { height: 100vh; width: 100%; z-index: 1; }
         
-        .overlay-ui { position: absolute; z-index: 1000; width: 100%; pointer-events: none; }
+        /* FIX OFFSIDE: Tambahkan left: 0 agar width 100% presisi */
+        .overlay-ui { position: absolute; left: 0; z-index: 1000; width: 100%; pointer-events: none; }
         .top-bar { top: 0; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
         .top-row { display: flex; justify-content: space-between; align-items: flex-start; }
         .btn-group { display: flex; flex-direction: column; gap: 5px; pointer-events: auto; }
@@ -63,12 +63,10 @@ $captain_name = $settings['captain_name'] ?? 'Kapten';
         .label { font-size: 10px; color: #bdc3c7; margin-bottom: 2px; }
         .val { font-size: 18px; font-weight: bold; color: #f1c40f; }
 
-        /* Modal Overlay */
         #uploadOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 9999; display: none; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
         .progress-bar { width: 80%; background: #444; height: 10px; border-radius: 5px; margin-top: 20px; overflow: hidden; }
         #progressFill { width: 0%; height: 100%; background: var(--primary); transition: width 0.3s; }
         
-        /* Peleton Avatar Info */
         .peleton-label { background: rgba(0,0,0,0.7); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; white-space: nowrap; }
     </style>
 </head>
@@ -158,12 +156,34 @@ $captain_name = $settings['captain_name'] ?? 'Kapten';
         }
 
         // 3. MAP & VARIABEL GOWES
-        const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([0, 0], 15);
+        // Set fallback ke daratan (bukan laut)
+        const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([-7.801, 110.373], 15);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-        
-        const pathLine = L.polyline([], { color: '#e74c3c', weight: 5 }).addTo(map); 
-        const captainMarker = L.circleMarker([0, 0], { radius: 8, color: '#fff', fillOpacity: 1, fillColor: '#e74c3c', zIndexOffset: 1000 }).addTo(map);
 
+        const pathLine = L.polyline([], { color: '#e74c3c', weight: 5 }).addTo(map); 
+        // Set posisi awal marker ke daratan juga
+        const captainMarker = L.circleMarker([-7.801, 110.373], { radius: 8, color: '#fff', fillOpacity: 1, fillColor: '#e74c3c', zIndexOffset: 1000 }).addTo(map);
+
+        // 2. MESIN DETEKSI LOKASI OTOMATIS
+        if ("geolocation" in navigator) {
+            navigator.geolocation.getCurrentPosition((position) => {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                
+                // Geser peta DAN marker ke lokasi device secara real-time
+                map.setView([lat, lng], 15);
+                captainMarker.setLatLng([lat, lng]); // <--- TAMBAHAN KRUSIAL
+                
+                console.log(`✅ Lokasi terdeteksi: ${lat}, ${lng}`);
+            }, (error) => {
+                console.warn("⚠️ Akses lokasi ditolak atau error, menggunakan koordinat default.");
+            }, {
+                enableHighAccuracy: true,
+                timeout: 5000,
+                maximumAge: 0
+            });
+        }
+        
         let isRecording = false, isAutoPaused = false, watchId = null, timerInterval = null;
         let totalDistance = 0, maxSpeed = 0, lastPos = null;
         let accumulatedTimeMs = 0, currentStartTimeMs = 0, secondsElapsed = 0;
@@ -206,7 +226,7 @@ $captain_name = $settings['captain_name'] ?? 'Kapten';
             let state = localStorage.getItem('kayooh_peleton_state');
             if (state && localStorage.getItem('active_session')?.includes('record_peleton')) {
                 let data = JSON.parse(state);
-                if (data.room_id !== ROOM_ID) return; // Cegah salah restore beda room
+                if (data.room_id !== ROOM_ID) return; 
 
                 totalDistance = data.totalDistance || 0; maxSpeed = data.maxSpeed || 0;
                 accumulatedTimeMs = data.accumulatedTimeMs || 0; isAutoPaused = data.isAutoPaused || false;
@@ -281,13 +301,11 @@ $captain_name = $settings['captain_name'] ?? 'Kapten';
                 document.getElementById('speedVal').innerText = currentSpeed.toFixed(1);
                 if (currentSpeed > maxSpeed) maxSpeed = currentSpeed;
 
-                // SENSOR SUHU (Narik tiap 15 Menit)
                 if (tempLog.length === 0 || (secondsElapsed - lastTempFetch > 900)) {
                     lastTempFetch = secondsElapsed;
                     fetchTemp(latitude, longitude).then(t => { if(t !== null) { tempLog.push(t); saveBlackBox(); }});
                 }
 
-                // AUTO PAUSE
                 if (currentSpeed < 1.5) {
                     if (!isAutoPaused && isRecording) {
                         isAutoPaused = true;
@@ -308,13 +326,16 @@ $captain_name = $settings['captain_name'] ?? 'Kapten';
                             document.getElementById('distVal').innerText = totalDistance.toFixed(2);
                             saveToIndexedDB({ lat: latitude, lng: longitude, time: Date.now() });
                             pathLine.addLatLng(currentPos); captainMarker.setLatLng(currentPos); map.panTo(currentPos);
+                            
+                            // BUG "JANGKAR TERSERET" DIBASMI DI SINI!
+                            lastPos = currentPos;
                         }
                     } else {
                         saveToIndexedDB({ lat: latitude, lng: longitude, time: Date.now() });
                         pathLine.addLatLng(currentPos); captainMarker.setLatLng(currentPos); map.panTo(currentPos);
                         document.getElementById('gps-info').innerHTML = '<span style="color:#2ecc71;">● MEREKAM</span>';
+                        lastPos = currentPos;
                     }
-                    lastPos = currentPos;
                 }
 
                 saveBlackBox();
@@ -349,13 +370,14 @@ $captain_name = $settings['captain_name'] ?? 'Kapten';
             document.getElementById('peletonCount').innerText = activeCount;
         }
 
-        // 7. PENUTUP & CHUNKING (Dengan AUTO-FILL Peserta)
+        // 7. PENUTUP & CHUNKING
         async function finishRide() {
+            // Prompt khusus konfirmasi daftar peserta
             let activeFriends = Object.keys(otherMarkers);
             let defaultText = CAPTAIN_NAME + (activeFriends.length > 0 ? ", " + activeFriends.join(", ") : "");
             
-            let userInput = prompt("🚴‍♂️ Gowes Peleton Selesai!\n\nKonfirmasi daftar peserta (dipisahkan koma):", defaultText);
-            if (userInput === null) return; 
+            let userInput = prompt("🚴‍♂️ Gowes Peleton Selesai!\n\nPastikan daftar nama teman-teman Anda sudah benar:", defaultText);
+            if (userInput === null) return; // Batal finish jika pencet Cancel
             
             let finalParticipants = userInput.split(',').map(s => s.trim()).filter(s => s.length > 0);
             if (finalParticipants.length === 0) finalParticipants = [CAPTAIN_NAME];

@@ -87,7 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="centered-container">
         <div class="box">
             <img src="assets/kayooh.png" alt="Kayooh" style="height: 45px; margin-bottom: 10px;">
-            <p class="subtitle" style="color:var(--text-color); opacity:0.7; font-size:12px;">Secure GPS Tracker v5.0</p>
+            <p class="subtitle" style="color:var(--text-color); opacity:0.7; font-size:12px;">Secure GPS Tracker</p>
             
             <?php if($pesan_error): ?>
                 <div class="error"><?= htmlspecialchars($pesan_error) ?></div>

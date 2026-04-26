@@ -1,5 +1,5 @@
 <?php
-// radar.php - Live Tracker untuk Peserta & Viewer (Kayooh v5.0)
+// radar.php - Live Tracker untuk Peserta & Viewer (Kayooh v5.0 - Anti-Drift Edition)
 $room = preg_replace('/[^a-zA-Z0-9_]/', '', $_GET['room'] ?? '');
 if (empty($room)) {
     die("<h2 style='text-align:center; font-family:sans-serif; color:#e74c3c; margin-top:50px;'>⛔ Sinyal Hilang: Room ID tidak valid.</h2>");
@@ -15,13 +15,17 @@ if (empty($room)) {
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         :root { --primary: #3b82f6; --dark: #121212; --panel: rgba(30, 30, 30, 0.9); --text: #f1f5f9; }
+        
+        /* CSS FIX OFFSIDE: Box sizing global */
+        * { box-sizing: border-box; }
+        
         body, html { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', sans-serif; background-color: var(--dark); color: var(--text); overflow: hidden; }
         #map { height: 100vh; width: 100vw; z-index: 1; }
         
         .overlay-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px); z-index: 9999; display: flex; align-items: center; justify-content: center; flex-direction: column; }
         .box-panel { background: #1e1e1e; padding: 30px; border-radius: 15px; text-align: center; border: 1px solid #333; width: 85%; max-width: 350px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         
-        .join-input { width: 100%; padding: 12px; margin: 15px 0; background: #2d2d2d; border: 1px solid #444; color: white; border-radius: 8px; font-size: 16px; box-sizing: border-box; text-align: center; }
+        .join-input { width: 100%; padding: 12px; margin: 15px 0; background: #2d2d2d; border: 1px solid #444; color: white; border-radius: 8px; font-size: 16px; text-align: center; }
         .join-input:focus { outline: none; border-color: var(--primary); }
         
         .btn-primary { background: var(--primary); color: white; border: none; padding: 14px; width: 100%; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer; transition: 0.2s; margin-bottom: 10px; }
@@ -114,13 +118,12 @@ if (empty($room)) {
     function hitungJarak(lat1, lon1, lat2, lon2) {
         const R = 6371e3, p1 = lat1 * Math.PI/180, p2 = lat2 * Math.PI/180, dp = (lat2-lat1) * Math.PI/180, dl = (lon2-lon1) * Math.PI/180;
         const a = Math.sin(dp/2) * Math.sin(dp/2) + Math.cos(p1) * Math.cos(p2) * Math.sin(dl/2) * Math.sin(dl/2);
-        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); // Mengembalikan jarak dalam satuan METER
     }
 
     function startViewer() {
         isViewer = true;
         document.getElementById('join-overlay').classList.add('hidden');
-        // Polling pasif untuk Viewer
         setInterval(() => {
             fetch(`radar_sync.php?room=${ROOM_ID}&action=sync`).then(res => res.json())
             .then(data => { if(data.participants) updateRadar(data.participants); });
@@ -146,11 +149,23 @@ if (empty($room)) {
             const lat = pos.coords.latitude, lon = pos.coords.longitude, ele = pos.coords.altitude || 0;
             const speed = pos.coords.speed ? (pos.coords.speed * 3.6) : 0;
 
-            routeArray.push({ lat, lon, ele, time: new Date(pos.timestamp).toISOString() });
-            if (prevLat !== null) totalDistanceMeters += hitungJarak(prevLat, prevLon, lat, lon);
-            prevLat = lat; prevLon = lon;
+            // MESIN JANGKAR ANTI-DRIFT (5 METER) UNTUK GUEST
+            if (prevLat !== null && prevLon !== null) {
+                const dMeters = hitungJarak(prevLat, prevLon, lat, lon);
+                if (dMeters >= 5) { // Hanya catat dan geser jangkar jika bergerak > 5 meter
+                    totalDistanceMeters += dMeters;
+                    prevLat = lat; 
+                    prevLon = lon;
+                    routeArray.push({ lat, lon, ele, time: new Date(pos.timestamp).toISOString() });
+                }
+            } else {
+                // Tangkap jangkar pertama kali
+                prevLat = lat; 
+                prevLon = lon;
+                routeArray.push({ lat, lon, ele, time: new Date(pos.timestamp).toISOString() });
+            }
 
-            // Jurus 1 Tarikan Nafas: Kirim Posisi ANDA, sekaligus Minta Posisi TEMAN!
+            // PANCARAN RADAR TETAP JALAN: Walau jangkar di-pause (nongkrong), sinyal posisi live tetap ditembak ke Kapten!
             fetch(`radar_sync.php?lat=${lat}&lng=${lon}&speed=${speed}&user=${guestName}&room=${ROOM_ID}&action=sync`)
                 .then(res => res.json())
                 .then(data => { if(data.participants) updateRadar(data.participants); })
@@ -191,7 +206,6 @@ if (empty($room)) {
 
         if (isFirstLoad && bounds.length > 0) { map.fitBounds(bounds, { padding: [40, 40] }); isFirstLoad = false; }
 
-        // AUTO-FINISH TRIGGER: Jika sinyal Kapten putus 3x berturut-turut
         if (!hostFound && isTracking) {
             missingHostCount++;
             if (missingHostCount >= 3) finishPeleton();

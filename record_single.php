@@ -1,5 +1,5 @@
 <?php
-// record_single.php - Kayooh v5.0 (Ultimate Solo Mode - Fixed CSS Offside)
+// record_single.php - Kayooh v5.0 (Ultimate Solo Mode - Fixed Anchor & Auto-Finish)
 session_start();
 $db_file = __DIR__ . '/kayooh.sqlite';
 
@@ -27,14 +27,12 @@ try {
     <style>
         :root { --primary: #e67e22; --dark: #1a1a1a; --card: #2c3e50; }
         
-        /* FIX OFFSIDE: Terapkan box-sizing ke semua elemen */
         * { box-sizing: border-box; }
         
         body { font-family: 'Segoe UI', sans-serif; background: var(--dark); color: white; margin: 0; overflow: hidden; }
         #map { height: 100vh; width: 100%; z-index: 1; }
         
-        /* FIX OFFSIDE: Pastikan width 100% aman dengan box-sizing yang sudah di-set di atas */
-        .overlay-ui { position: absolute; z-index: 1000; width: 100%; pointer-events: none; }
+        .overlay-ui { position: absolute; left: 0; z-index: 1000; width: 100%; pointer-events: none; }
         .top-bar { top: 0; padding: 15px; display: flex; justify-content: space-between; align-items: flex-start; }
         .bottom-bar { bottom: 0; padding: 20px; background: linear-gradient(transparent, rgba(0,0,0,0.8)); }
         
@@ -125,17 +123,33 @@ try {
             if (db) db.transaction(STORE_NAME, "readwrite").objectStore(STORE_NAME).clear();
         }
 
-        // 2. VARIABEL GLOBAL
+        // 3. MAP & VARIABEL GOWES
+        // Fallback default ke Jogja (biar nggak ke Samudra Atlantik)
         const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([-7.801, 110.373], 15);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-        
-        const pathLine = L.polyline([], { color: '#e67e22', weight: 5 }).addTo(map);
-        const marker = L.circleMarker([0, 0], { radius: 8, color: '#fff', fillOpacity: 1, fillColor: '#3498db' }).addTo(map);
 
-        let isRecording = false, isAutoPaused = false, watchId = null, timerInterval = null;
-        let totalDistance = 0, maxSpeed = 0, lastPos = null;
-        let accumulatedTimeMs = 0, currentStartTimeMs = 0, secondsElapsed = 0;
-        let tempLog = [], lastTempFetch = 0, wakeLock = null;
+        const pathLine = L.polyline([], { color: '#e67e22', weight: 5 }).addTo(map); 
+        const captainMarker = L.circleMarker([-7.801, 110.373], { radius: 8, color: '#fff', fillOpacity: 1, fillColor: '#e67e22', zIndexOffset: 1000 }).addTo(map);
+
+        // --- MESIN DETEKSI LOKASI OTOMATIS (V6.0) ---
+        if ("geolocation" in navigator) {
+            navigator.geolocation.getCurrentPosition((position) => {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                
+                // Pindahkan Peta dan Marker ke posisi device saat ini
+                map.setView([lat, lng], 15);
+                captainMarker.setLatLng([lat, lng]);
+                
+                console.log(`✅ Solo Mode: Lokasi terkunci di ${lat}, ${lng}`);
+            }, (error) => {
+                console.warn("⚠️ Akses lokasi ditolak, menggunakan koordinat default.");
+            }, {
+                enableHighAccuracy: true,
+                timeout: 5000,
+                maximumAge: 0
+            });
+        }
 
         // 3. FITUR SAKTI: WAKELOCK, SUHU & BLACKBOX
         async function requestWakeLock() {
@@ -184,7 +198,7 @@ try {
                 if (allPoints.length > 0) {
                     let latlngs = allPoints.map(p => [p.lat, p.lng]);
                     pathLine.setLatLngs(latlngs);
-                    marker.setLatLng(latlngs[latlngs.length - 1]);
+                    captainMarker.setLatLng(latlngs[latlngs.length - 1]);
                     map.fitBounds(pathLine.getBounds());
                 }
 
@@ -263,14 +277,17 @@ try {
                             totalDistance += d;
                             document.getElementById('distVal').innerText = totalDistance.toFixed(2);
                             saveToIndexedDB({ lat: latitude, lng: longitude, time: Date.now() });
-                            pathLine.addLatLng(currentPos); marker.setLatLng(currentPos); map.panTo(currentPos);
+                            pathLine.addLatLng(currentPos); captainMarker.setLatLng(currentPos); map.panTo(currentPos);
+                            
+                            // BUG "JANGKAR TERSERET" DIBASMI DI SINI!
+                            lastPos = currentPos; 
                         }
                     } else {
                         saveToIndexedDB({ lat: latitude, lng: longitude, time: Date.now() });
-                        pathLine.addLatLng(currentPos); marker.setLatLng(currentPos); map.panTo(currentPos);
+                        pathLine.addLatLng(currentPos); captainMarker.setLatLng(currentPos); map.panTo(currentPos);
                         document.getElementById('gps-info').innerHTML = '<span style="color:#2ecc71;">● MEREKAM</span>';
+                        lastPos = currentPos;
                     }
-                    lastPos = currentPos;
                 }
 
                 saveBlackBox(); 
@@ -278,10 +295,8 @@ try {
             }, (err) => console.error(err), { enableHighAccuracy: true });
         }
 
-        // 5. PENUTUP & CHUNKING
+        // 5. PENUTUP & CHUNKING (Tanpa Prompt, Langsung Sikat!)
         async function finishRide() {
-            if (!confirm("Sudah sampai tujuan, Kapten?")) return;
-            
             clearInterval(timerInterval);
             if (watchId !== null) navigator.geolocation.clearWatch(watchId);
             releaseWakeLock();

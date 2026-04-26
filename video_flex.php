@@ -1,5 +1,5 @@
 <?php
-// video_flex.php - Kayooh Studio Mode V7.5 (Support Cloudflare R2 & Strava)
+// video_flex.php - Kayooh Studio Mode V5.0 (Full R2 & Local Array Support)
 session_start();
 $db_file = __DIR__ . '/kayooh.sqlite';
 
@@ -15,6 +15,12 @@ try {
     $stmt->execute([$id]);
     $ride = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$ride) die("Aktivitas tidak ditemukan!");
+
+    // --- ANTI-BUG FILE LOKAL (Solusi Peta Blank) ---
+    $polyline_data = $ride['polyline'];
+    if (strpos($polyline_data, '.json') !== false && file_exists($polyline_data)) {
+        $polyline_data = file_get_contents($polyline_data);
+    }
 
     // --- LOGIKA PELETON ---
     $participants = [];
@@ -320,7 +326,7 @@ try {
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    const rawPolyline = <?= json_encode($ride['polyline'] ?? '') ?>;
+    const rawPolyline = <?= json_encode($polyline_data ?? '') ?>;
     const totalDistTarget = <?= (float)$ride['distance'] ?>;
     const totalElevTarget = <?= (int)$ride['total_elevation_gain'] ?>;
     const movingTimeTarget = <?= (int)$ride['moving_time'] ?>;
@@ -388,7 +394,12 @@ try {
             if (rawStr.startsWith('http')) {
                 let res = await fetch(rawStr);
                 let jsonRaw = await res.json();
-                coords = jsonRaw.map(p => (p.lat !== undefined) ? [parseFloat(p.lat), parseFloat(p.lng)] : null);
+                // FIX: Support untuk Array R2 v5.0
+                coords = jsonRaw.map(p => {
+                    if (Array.isArray(p)) return [parseFloat(p[0]), parseFloat(p[1])];
+                    if (p.lat !== undefined) return [parseFloat(p.lat), parseFloat(p.lng)];
+                    return null;
+                });
             } else if (rawStr.startsWith('[') || rawStr.startsWith('{') || rawStr.startsWith('"[')) {
                 let parsed = JSON.parse(rawStr);
                 if (typeof parsed === 'string') parsed = JSON.parse(parsed);

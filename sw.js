@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kayooh-v5-bunker';
+const CACHE_NAME = 'kayooh-v6-bunker';
 
 // Aset yang WAJIB ada di cache agar UI tidak hancur saat offline
 const STATIC_ASSETS = [

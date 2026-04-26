@@ -1,5 +1,5 @@
 <?php
-// dashboard.php - Kayooh v5.0 (Fixed Modal UI & Safe DB Restore)
+// dashboard.php - Kayooh v5.0 (Fixed UI Responsiveness & Universal Map Parser)
 session_start();
 $db_file = __DIR__ . '/kayooh.sqlite';
 
@@ -8,7 +8,7 @@ if (!isset($_SESSION['is_logged_in']) || $_SESSION['is_logged_in'] !== true) {
     exit;
 }
 
-// --- LOGIKA AMAN DOWNLOAD DATABASE (Harus di paling atas agar tidak error Header) ---
+// --- LOGIKA AMAN DOWNLOAD DATABASE ---
 if (isset($_GET['download_db'])) {
     if (file_exists($db_file)) {
         header('Content-Type: application/vnd.sqlite3');
@@ -26,7 +26,7 @@ try {
     $msg_settings = $msg_password = $msg_db = '';
     $show_modal = $show_db_modal = false;
 
-    // --- LOGIKA SIMPAN PENGATURAN (PROFIL, TELEGRAM, R2) ---
+    // --- LOGIKA SIMPAN PENGATURAN ---
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_settings'])) {
         $show_modal = true;
         $fields = ['captain_name', 'telegram_bot_token', 'telegram_chat_id', 'r2_account_id', 'r2_access_key', 'r2_secret_key', 'r2_bucket', 'r2_public_url'];
@@ -65,7 +65,6 @@ try {
         if (isset($_FILES['db_file']) && $_FILES['db_file']['error'] === UPLOAD_ERR_OK) {
             $ext = pathinfo($_FILES['db_file']['name'], PATHINFO_EXTENSION);
             if (strtolower($ext) === 'sqlite' || strtolower($ext) === 'db') {
-                // Langsung timpa file fisiknya!
                 if (move_uploaded_file($_FILES['db_file']['tmp_name'], $db_file)) {
                     $msg_db = "<div class='alert success'>✅ Database Kayooh berhasil di-restore!</div>";
                 } else {
@@ -107,6 +106,14 @@ try {
     $rides = $stmt->fetchAll(PDO::FETCH_ASSOC);
     $total_pages = ceil($total_rides / $limit);
 
+    // --- ANTI-BUG LOKAL FILE (Solusi Peta Modal Kosong) ---
+    foreach ($rides as &$r) {
+        if (strpos($r['polyline'], '.json') !== false && file_exists($r['polyline'])) {
+            $r['polyline'] = file_get_contents($r['polyline']);
+        }
+    }
+    unset($r);
+
 } catch (PDOException $e) { die("Database error: " . $e->getMessage()); }
 ?>
 <!DOCTYPE html>
@@ -121,24 +128,33 @@ try {
     <link rel="manifest" href="assets/site.webmanifest">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
+        /* CSS FIX OFFSIDE: Box sizing global */
+        * { box-sizing: border-box; }
+
         :root { --bg-body: #f4f7f6; --text-main: #2c3e50; --text-muted: #7f8c8d; --card-bg: #ffffff; --card-border: #ecf0f1; --primary: #e67e22; --primary-hover: #d35400; --accent: #3498db; --danger: #e74c3c; --success: #2ecc71; --modal-overlay: rgba(0,0,0,0.6); }
         body.dark-mode { --bg-body: #121212; --text-main: #ecf0f1; --text-muted: #bdc3c7; --card-bg: #1e1e1e; --card-border: #333333; --primary: #f39c12; --primary-hover: #e67e22; --accent: #2980b9; --modal-overlay: rgba(0,0,0,0.8); }
+        
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-body); color: var(--text-main); margin: 0; padding: 20px; transition: background 0.3s, color 0.3s; }
+        
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 2px solid var(--card-border); padding-bottom: 15px; }
         .header h1 { margin: 0; color: var(--primary); font-size: 24px; display: flex; align-items: center; gap: 10px; }
-        .header-actions { display: flex; gap: 10px; }
-        .btn { padding: 10px 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 13px; transition: 0.2s; display: inline-flex; align-items: center; gap: 5px; text-decoration: none; }
+        .header-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+        
+        .btn { padding: 10px 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 13px; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 5px; text-decoration: none; }
         .btn:hover { transform: translateY(-2px); opacity: 0.9; }
         .btn-primary { background-color: var(--primary); color: #fff; }
         .btn-accent { background-color: var(--accent); color: #fff; }
         .btn-outline { background-color: transparent; border: 1px solid var(--text-muted); color: var(--text-main); }
         .btn-danger { background-color: var(--danger); color: #fff; }
+        
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; margin-bottom: 25px; }
         .stat-card { background: var(--card-bg); padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center; border: 1px solid var(--card-border); transition: 0.3s; }
         .stat-card:hover { transform: translateY(-5px); box-shadow: 0 8px 15px rgba(0,0,0,0.1); }
         .stat-value { font-size: 28px; font-weight: 900; color: var(--primary); margin: 5px 0; }
         .stat-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+        
         .search-bar { width: 100%; padding: 12px 15px; border: 1px solid var(--card-border); border-radius: 10px; background: var(--card-bg); color: var(--text-main); margin-bottom: 20px; font-size: 14px; box-sizing: border-box; }
+        
         .ride-list { display: flex; flex-direction: column; gap: 12px; }
         .ride-item { background: var(--card-bg); padding: 15px 20px; border-radius: 10px; border: 1px solid var(--card-border); display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: 0.2s; position: relative; overflow: hidden; }
         .ride-item::before { content: ''; position: absolute; left: 0; top: 0; width: 4px; height: 100%; background: var(--primary); opacity: 0; transition: 0.2s; }
@@ -147,16 +163,19 @@ try {
         .ride-info { flex-grow: 1; }
         .ride-title { font-weight: bold; font-size: 16px; margin-bottom: 5px; }
         .ride-date { font-size: 12px; color: var(--text-muted); }
-        .ride-stats { display: flex; gap: 15px; margin-top: 8px; font-size: 13px; font-weight: 500; }
+        .ride-stats { display: flex; gap: 15px; margin-top: 8px; font-size: 13px; font-weight: 500; flex-wrap: wrap;}
         .ride-stats span { display: flex; align-items: center; gap: 4px; }
-        .pagination { display: flex; justify-content: center; gap: 10px; margin-top: 30px; }
+        
+        .pagination { display: flex; justify-content: center; gap: 10px; margin-top: 30px; flex-wrap: wrap; }
         .page-link { padding: 8px 12px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 6px; color: var(--text-main); text-decoration: none; font-size: 14px; transition: 0.2s; }
         .page-link.active { background: var(--primary); color: #fff; border-color: var(--primary); }
         .page-link:hover:not(.active) { background: var(--card-border); }
-        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: var(--modal-overlay); backdrop-filter: blur(5px); }
-        .modal-content { background-color: var(--card-bg); margin: 5vh auto; padding: 30px; border-radius: 15px; width: 90%; max-width: 500px; max-height: 85vh; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.3); position: relative; }
+        
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: var(--modal-overlay); backdrop-filter: blur(5px); overflow-y: auto; }
+        .modal-content { background-color: var(--card-bg); margin: 5vh auto; padding: 30px; border-radius: 15px; width: 90%; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); position: relative; }
         .close-btn { position: absolute; top: 20px; right: 20px; font-size: 24px; font-weight: bold; color: var(--text-muted); cursor: pointer; line-height: 1; }
         .close-btn:hover { color: var(--danger); }
+        
         #modal-map { height: 250px; width: 100%; background: #eee; border-radius: 10px; margin: 15px 0; border: 1px solid var(--card-border); z-index: 1; }
         .form-group { margin-bottom: 15px; text-align: left; }
         .form-group label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 5px; font-weight: bold; }
@@ -165,22 +184,32 @@ try {
         .alert.success { background: rgba(46, 204, 113, 0.2); color: #27ae60; border: 1px solid #2ecc71; }
         .alert.error { background: rgba(231, 76, 60, 0.2); color: #c0392b; border: 1px solid #e74c3c; }
         .r2-box { background: rgba(230, 126, 34, 0.05); padding: 15px; border-radius: 10px; border: 1px dashed var(--primary); margin: 20px 0; }
-        @media (max-width: 600px) { .header { flex-direction: column; align-items: flex-start; gap: 15px; } .header-actions { width: 100%; justify-content: space-between; } }
+        
+        /* MEDIA QUERY: Anti Offside untuk Layar Kecil */
+        @media (max-width: 600px) { 
+            .header { flex-direction: column; align-items: flex-start; gap: 15px; } 
+            .header-actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+            .header-actions .btn { font-size: 11px; padding: 10px 5px; width: 100%; }
+            #theme-btn { grid-column: span 3; } /* Tombol tema melebar di bawah */
+        }
     </style>
 </head>
 <body>
     <script>if(localStorage.getItem('theme') === 'dark') document.body.classList.add('dark-mode');</script>
 
     <div class="header">
-        <h1>🦅 KAYOOH <span style="font-size:12px; opacity:0.6;">v5.0</span></h1>
+        <h1 style="display: flex; align-items: center; gap: 8px; margin: 0;">
+            <img src="assets/kayooh.png" alt="Kayooh Logo" style="height: 38px; object-fit: contain;">
+        </h1>
         <div class="header-actions">
             <button class="btn btn-primary" onclick="startRide()">🚀 SOLO</button>
             <button class="btn btn-accent" onclick="openModal('peletonModal')">👥 PELETON</button>
+            <button class="btn btn-outline" onclick="window.location.href='heatmap.php'" style="background:#e74c3c; color:white; border:none;">🔥 HEATMAP</button>
             <button class="btn btn-outline" onclick="window.location.href='sync_strava.php'" style="background:#fc4c02; color:white; border:none;">🧡 SYNC</button>
             <button class="btn btn-outline" onclick="window.location.href='gpx_import.php'" style="background:#27ae60; color:white; border:none;">📥 GPX</button>
-            <button class="btn btn-outline" onclick="window.location.href='heatmap.php'" style="background:#e74c3c; color:white; border:none;">🔥 HEATMAP</button>
-            <button class="btn btn-outline" onclick="openModal('settingsModal')">⚙️</button>
-            <button class="btn btn-outline" onclick="toggleTheme()" id="theme-btn">🌙</button>
+            <button class="btn btn-outline" onclick="openModal('settingsModal')">⚙️ PENGATURAN</button>
+            <button class="btn btn-outline" onclick="toggleTheme()" id="theme-btn">🌙 MODE GELAP</button>
+            <button class="btn btn-primary" id="btn-install" style="display: none; background: #8e44ad;" onclick="installPWA()">📲 INSTALL APP</button>
         </div>
     </div>
 
@@ -260,11 +289,11 @@ try {
 
             <div id="modal-map"></div>
 
-            <div style="display:flex; gap:10px; margin-top:15px;">
-                <button class="btn btn-primary" style="flex:1;" id="btn-full-detail">🔍 Rincian</button>
-                <form method="POST" style="margin:0;" onsubmit="return confirm('Hapus sejarah ini?');">
+            <div style="display:flex; gap:10px; margin-top:15px; flex-wrap: wrap;">
+                <button class="btn btn-primary" style="flex:1; min-width: 100px;" id="btn-full-detail">🔍 Rincian</button>
+                <form method="POST" style="margin:0; flex:1; min-width: 100px; display: flex;" onsubmit="return confirm('Hapus sejarah ini?');">
                     <input type="hidden" name="ride_id" id="delete-id">
-                    <button type="submit" name="delete_ride" class="btn btn-danger">🗑️</button>
+                    <button type="submit" name="delete_ride" class="btn btn-danger" style="width: 100%;">🗑️ Hapus</button>
                 </form>
             </div>
         </div>
@@ -284,7 +313,7 @@ try {
                 </div>
 
                 <div class="r2-box">
-                    <h3 style="margin-top:0; font-size:14px; color:var(--primary);">☁️ Cloudflare R2 (v5.0)</h3>
+                    <h3 style="margin-top:0; font-size:14px; color:var(--primary);">☁️ Cloudflare R2</h3>
                     <div class="form-group"><label>Account ID:</label><input type="text" name="r2_account_id" value="<?= htmlspecialchars($settings['r2_account_id'] ?? '') ?>"></div>
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
                         <div class="form-group"><label>Access Key:</label><input type="password" name="r2_access_key" value="<?= htmlspecialchars($settings['r2_access_key'] ?? '') ?>"></div>
@@ -306,9 +335,9 @@ try {
             </form>
             
             <hr style="margin:25px 0; border:0; border-top:1px solid var(--card-border);">
-            <div style="display:flex; gap:10px;">
-                <button class="btn btn-outline" style="flex:1;" onclick="closeModal('settingsModal'); openModal('dbModal');">🗄️ DATABASE</button>
-                <button class="btn btn-danger" style="flex:1;" onclick="window.location.href='logout.php'">🚪 LOGOUT</button>
+            <div style="display:flex; gap:10px; flex-wrap: wrap;">
+                <button class="btn btn-outline" style="flex:1; min-width: 120px;" onclick="closeModal('settingsModal'); openModal('dbModal');">🗄️ DATABASE</button>
+                <button class="btn btn-danger" style="flex:1; min-width: 120px;" onclick="window.location.href='logout.php'">🚪 LOGOUT</button>
             </div>
         </div>
     </div>
@@ -337,34 +366,47 @@ try {
         // --- FITUR AUTO-BOUNCE (BANTING SESI) ---
         let activeSession = localStorage.getItem('active_session');
         if (activeSession) { window.location.href = activeSession; }
-        let currentRoomId = 'SINGLE_MODE'; 
-
+        let currentRoomId = 'SINGLE_MODE';
+        
+        // --- GLOBAL VARIABLES (CUKUP 1 KALI DI SINI) ---
+        let modalMap = null, activeLine = null, activeMarkers = [], activeBaseLayer = null;
+        
         // --- THEME ENGINE ---
         const toggleTheme = () => {
             document.body.classList.toggle('dark-mode');
             const isDark = document.body.classList.contains('dark-mode');
             localStorage.setItem('theme', isDark ? 'dark' : 'light');
-            document.getElementById('theme-btn').innerText = isDark ? '☀️' : '🌙';
+            document.getElementById('theme-btn').innerText = isDark ? '☀️ MODE TERANG' : '🌙 MODE GELAP';
+            
+            // UPDATE MAP TILES SECARA REAL-TIME
+            const newTileUrl = isDark 
+                ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+                : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+                
+            if (modalMap && activeBaseLayer) {
+                modalMap.removeLayer(activeBaseLayer);
+                activeBaseLayer = L.tileLayer(newTileUrl).addTo(modalMap);
+            }
         };
 
         window.addEventListener('DOMContentLoaded', () => { 
             if (localStorage.getItem('theme') === 'dark') {
-                document.getElementById('theme-btn').innerText = '☀️';
+                document.getElementById('theme-btn').innerText = '☀️ MODE TERANG';
             }
         });
 
         // --- INTERAKSI MODAL & ROUTING ---
         const openModal = id => document.getElementById(id).style.display = 'block';
         const closeModal = id => document.getElementById(id).style.display = 'none';
-        const startRide = () => window.location.href = 'record_single.php?room=SINGLE_MODE';
         
+        const startRide = () => window.location.href = 'record_single.php?room=SINGLE_MODE';
         const startPeleton = () => {
             let val = document.getElementById('roomInput').value.trim().toUpperCase();
             let room = val ? val.replace(/[^A-Z0-9_]/g, '') : 'PLTN_' + Math.random().toString(36).substring(2, 8).toUpperCase();
             window.location.href = `record_peleton.php?room=${room}`;
         };
 
-        // --- MESIN PEMECAH SANDI POLYLINE STRAVA (V4.0 LAGGACY) ---
+        // --- MESIN PEMECAH SANDI POLYLINE STRAVA (V4.0 LEGACY) ---
         function decodePolyline(encoded) {
             if (!encoded) return [];
             let points = [], index = 0, len = encoded.length, lat = 0, lng = 0;
@@ -381,8 +423,6 @@ try {
         }
 
         // --- HYBRID MAP ENGINE (v5.0 - SUPPORT ALL FORMATS) ---
-        let modalMap = null, activeLine = null, activeMarkers = [];
-
         async function viewRide(ride) {
             openModal('rideModal');
             
@@ -405,10 +445,17 @@ try {
             document.getElementById('btn-full-detail').onclick = () => window.location.href = `detail.php?id=${ride.id}`;
             document.getElementById('delete-id').value = ride.id;
 
-            // 2. INITIALIZE MAP
+            // 2. INITIALIZE MAP (VERSI DINAMIS CartoDB)
             if (!modalMap) {
                 modalMap = L.map('modal-map', { zoomControl: false, attributionControl: false }).setView([-2.5489, 118.0149], 4);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(modalMap);
+                
+                // Pilih Tile sesuai Tema saat ini
+                const isDark = document.body.classList.contains('dark-mode');
+                const tileUrl = isDark 
+                    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+                    : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+                
+                activeBaseLayer = L.tileLayer(tileUrl).addTo(modalMap);
             }
             
             if (activeLine) modalMap.removeLayer(activeLine);
@@ -423,32 +470,30 @@ try {
                     let rawStr = ride.polyline.trim();
                     let coords = [];
 
-                    // Skenario A: Fetch JSON dari Cloudflare R2
                     if (rawStr.startsWith('http')) {
                         let res = await fetch(rawStr);
                         let jsonRaw = await res.json();
-                        coords = jsonRaw.map(p => (p.lat !== undefined) ? [parseFloat(p.lat), parseFloat(p.lng)] : null);
+                        coords = jsonRaw.map(p => {
+                            if (Array.isArray(p)) return [parseFloat(p[0]), parseFloat(p[1])];
+                            if (p.lat !== undefined) return [parseFloat(p.lat), parseFloat(p.lng)];
+                            return null;
+                        });
                     } 
-                    // Skenario B: JSON Array dari SQLite
                     else if (rawStr.startsWith('[') || rawStr.startsWith('{') || rawStr.startsWith('"[')) {
                         let parsed = JSON.parse(rawStr);
-                        if (typeof parsed === 'string') parsed = JSON.parse(parsed); // Fix double stringify
+                        if (typeof parsed === 'string') parsed = JSON.parse(parsed);
                         coords = parsed.map(p => {
                             if (Array.isArray(p)) return [parseFloat(p[0]), parseFloat(p[1])];
                             if (p.lat !== undefined) return [parseFloat(p.lat), parseFloat(p.lng)];
                             return null;
                         });
                     } 
-                    // Skenario C: Encoded Polyline (Sandi Keriting v4.0)
                     else {
-                        console.log("🔓 Memecahkan Sandi Polyline v4.0...");
                         coords = decodePolyline(rawStr);
                     }
 
-                    // Bersihkan kordinat null/cacat
                     coords = coords.filter(p => p !== null && !isNaN(p[0]) && !isNaN(p[1]));
 
-                    // 4. EKSEKUSI LEAFLET
                     if (coords.length > 1) {
                         let clr = getComputedStyle(document.body).getPropertyValue('--primary').trim() || '#e67e22';
                         activeLine = L.polyline(coords, { color: clr, weight: 4, opacity: 0.8 }).addTo(modalMap);
@@ -468,6 +513,36 @@ try {
                 } catch (e) { 
                     console.error("❌ Gagal menggambar Routeline:", e); 
                 }
+            }
+        }
+
+        // 1. KUNCI KONTAK SERVICE WORKER
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('✅ Service Worker Bekerja!'))
+                    .catch(err => console.log('❌ Service Worker Mogok:', err));
+            });
+        }
+
+        // 2. MESIN PROMPT INSTALL PWA (A2HS)
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('btn-install').style.display = 'inline-flex';
+        });
+
+        function installPWA() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('User menginstall Kayooh!');
+                        document.getElementById('btn-install').style.display = 'none';
+                    }
+                    deferredPrompt = null;
+                });
             }
         }
     </script>
