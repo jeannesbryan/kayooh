@@ -1,5 +1,5 @@
 <?php
-// video_flex.php - Kayooh Studio Mode V7 (Performance Optimized, Preload, Expanded Readability)
+// video_flex.php - Kayooh Studio Mode V7.5 (Support Cloudflare R2 & Strava)
 session_start();
 $db_file = __DIR__ . '/kayooh.sqlite';
 
@@ -67,6 +67,8 @@ try {
             --overlay-bg: rgba(240, 240, 240, 0.95);
             --controls-bg: rgba(255,255,255,0.9);
         }
+
+        * { box-sizing: border-box; }
 
         body, html { 
             margin: 0; 
@@ -245,7 +247,6 @@ try {
             transition: opacity 0.3s;
         }
 
-        /* Style untuk tombol saat preload */
         .btn-play:disabled { 
             cursor: not-allowed; 
             opacity: 0.5; 
@@ -312,14 +313,14 @@ try {
 
     <div id="controls">
         <div id="countdown">3</div>
-        <button id="btn-start" class="btn-play" onclick="prepareStudio()" disabled>⏳ MEMUAT PETA...</button>
+        <button id="btn-start" class="btn-play" onclick="prepareStudio()" disabled>⏳ MEMUAT RUTE & PETA...</button>
         <p id="inst-text" class="instructions">Tekan tombol, lalu nyalakan fitur <b>Rekam Layar</b> di HP Anda saat hitung mundur!</p>
     </div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    const rawPolyline = <?= json_encode($ride['polyline']) ?>;
+    const rawPolyline = <?= json_encode($ride['polyline'] ?? '') ?>;
     const totalDistTarget = <?= (float)$ride['distance'] ?>;
     const totalElevTarget = <?= (int)$ride['total_elevation_gain'] ?>;
     const movingTimeTarget = <?= (int)$ride['moving_time'] ?>;
@@ -328,45 +329,29 @@ try {
     const ridersList = <?= json_encode($participants) ?>; 
     const isPeleton = ridersList && ridersList.length > 0;
 
-    function decodePolyline(encoded) {
-        if (!encoded) return [];
-        if (typeof encoded === 'string' && encoded.trim().startsWith('[')) {
-            try { return JSON.parse(encoded); } catch(e) { return []; }
-        }
-        let points = [];
-        let index = 0;
-        let len = encoded.length;
-        let lat = 0;
-        let lng = 0;
+    let fullPath = [];
+    let mapLoaded = false;
+    let dataLoaded = false;
+    let markers = [];
 
+    // --- MESIN PEMECAH SANDI POLYLINE STRAVA ---
+    function decodePolylineStrava(encoded) {
+        if (!encoded) return [];
+        let points = [], index = 0, len = encoded.length, lat = 0, lng = 0;
         while (index < len) {
             let b, shift = 0, result = 0;
-            do { 
-                b = encoded.charCodeAt(index++) - 63; 
-                result |= (b & 0x1f) << shift; 
-                shift += 5; 
-            } while (b >= 0x20);
-            let dlat = ((result & 1) ? ~(result >> 1) : (result >> 1)); 
-            lat += dlat;
-            
-            shift = 0;
-            result = 0;
-            do { 
-                b = encoded.charCodeAt(index++) - 63; 
-                result |= (b & 0x1f) << shift; 
-                shift += 5; 
-            } while (b >= 0x20);
-            let dlng = ((result & 1) ? ~(result >> 1) : (result >> 1)); 
-            lng += dlng;
-            
+            do { b = encoded.charCodeAt(index++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+            lat += ((result & 1) ? ~(result >> 1) : (result >> 1));
+            shift = 0; result = 0;
+            do { b = encoded.charCodeAt(index++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+            lng += ((result & 1) ? ~(result >> 1) : (result >> 1));
             points.push([lat / 1e5, lng / 1e5]);
         }
         return points;
     }
-    const fullPath = decodePolyline(rawPolyline);
 
-    const startCoord = fullPath.length > 0 ? fullPath[0] : [-7.801, 110.373];
-    const map = L.map('map', { zoomControl: false, attributionControl: false }).setView(startCoord, 14);
+    // --- INISIALISASI PETA DASAR ---
+    const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([-2.5489, 118.0149], 4);
     
     const isLightMode = document.documentElement.getAttribute('data-theme') === 'light';
     const tileUrl = isLightMode 
@@ -374,56 +359,97 @@ try {
         : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
     
     const baseLayer = L.tileLayer(tileUrl).addTo(map);
+    const animatedLine = L.polyline([], { color: '#FF6600', weight: 6, opacity: 1 }).addTo(map);
 
-    // --- FITUR PRELOAD PETA ---
-    // Dengarkan event 'load' dari TileLayer CartoDB
+    function checkReadyStatus() {
+        if (mapLoaded && dataLoaded) {
+            if (fullPath.length > 0) {
+                const btn = document.getElementById('btn-start');
+                btn.disabled = false;
+                btn.innerText = "🎬 SIAPKAN REKAMAN";
+            } else {
+                document.getElementById('btn-start').innerText = "❌ DATA RUTE KOSONG";
+            }
+        }
+    }
+
     baseLayer.on('load', function() {
-        const btn = document.getElementById('btn-start');
-        btn.disabled = false;
-        btn.innerText = "🎬 SIAPKAN REKAMAN";
+        mapLoaded = true;
+        checkReadyStatus();
     });
 
-    const animatedLine = L.polyline([], { color: '#FF6600', weight: 6, opacity: 1 }).addTo(map);
-    
-    let markers = [];
-    const pelotonColors = ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF'];
+    // --- UNIVERSAL PARSER (V5 & R2 SUPPORT) ---
+    async function loadRouteData() {
+        if (!rawPolyline || rawPolyline.trim() === '') return [];
+        let rawStr = rawPolyline.trim();
+        let coords = [];
 
-    if (!isPeleton) {
-        const bikeIcon = L.divIcon({
-            className: 'custom-bike',
-            html: '<div style="font-size: 24px; text-shadow: 0 0 10px #FF6600, 0 0 20px #FF6600; text-align: center;">🚴‍♂️</div>',
-            iconSize: [30, 30], iconAnchor: [15, 15]
-        });
-        markers.push(L.marker(startCoord, { icon: bikeIcon }).addTo(map));
-    } else {
-        ridersList.forEach((name, i) => {
-            const color = pelotonColors[i % pelotonColors.length];
-            const dotIcon = L.divIcon({
-                className: 'rider-label',
-                html: `<div class="rider-dot" style="background:${color}"></div><div class="rider-name">${name}</div>`,
-                iconSize: [60, 40], iconAnchor: [30, 6]
-            });
-            markers.push(L.marker(startCoord, { icon: dotIcon }).addTo(map));
-        });
+        try {
+            if (rawStr.startsWith('http')) {
+                let res = await fetch(rawStr);
+                let jsonRaw = await res.json();
+                coords = jsonRaw.map(p => (p.lat !== undefined) ? [parseFloat(p.lat), parseFloat(p.lng)] : null);
+            } else if (rawStr.startsWith('[') || rawStr.startsWith('{') || rawStr.startsWith('"[')) {
+                let parsed = JSON.parse(rawStr);
+                if (typeof parsed === 'string') parsed = JSON.parse(parsed);
+                coords = parsed.map(p => {
+                    if (Array.isArray(p)) return [parseFloat(p[0]), parseFloat(p[1])];
+                    if (p.lat !== undefined) return [parseFloat(p.lat), parseFloat(p.lng)];
+                    return null;
+                });
+            } else {
+                coords = decodePolylineStrava(rawStr);
+            }
+            return coords.filter(p => p !== null && !isNaN(p[0]) && !isNaN(p[1]));
+        } catch (e) {
+            console.error("Gagal load rute:", e);
+            return [];
+        }
     }
+
+    // --- EKSEKUSI PEMUATAN DATA ---
+    loadRouteData().then(path => {
+        fullPath = path;
+        if (fullPath.length > 0) {
+            const startCoord = fullPath[0];
+            map.setView(startCoord, 14);
+
+            const pelotonColors = ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF'];
+            
+            if (!isPeleton) {
+                const bikeIcon = L.divIcon({
+                    className: 'custom-bike',
+                    html: '<div style="font-size: 24px; text-shadow: 0 0 10px #FF6600, 0 0 20px #FF6600; text-align: center;">🚴‍♂️</div>',
+                    iconSize: [30, 30], iconAnchor: [15, 15]
+                });
+                markers.push(L.marker(startCoord, { icon: bikeIcon }).addTo(map));
+            } else {
+                ridersList.forEach((name, i) => {
+                    const color = pelotonColors[i % pelotonColors.length];
+                    const dotIcon = L.divIcon({
+                        className: 'rider-label',
+                        html: `<div class="rider-dot" style="background:${color}"></div><div class="rider-name">${name}</div>`,
+                        iconSize: [60, 40], iconAnchor: [30, 6]
+                    });
+                    markers.push(L.marker(startCoord, { icon: dotIcon }).addTo(map));
+                });
+            }
+        }
+        dataLoaded = true;
+        checkReadyStatus();
+    });
 
     let animationRunning = false;
     const duration = 25000;
     let startTime = null;
-    let frameCount = 0; // Tambahan untuk Optimasi HP Kentang
+    let frameCount = 0;
 
     function prepareStudio() {
-        if (fullPath.length <= 1) { 
-            alert("Rute kosong!"); 
-            return; 
-        }
+        if (fullPath.length <= 1) { alert("Rute kosong!"); return; }
 
         const elem = document.documentElement;
-        if (elem.requestFullscreen) {
-            elem.requestFullscreen().catch(err => console.log("Gagal fullscreen", err));
-        } else if (elem.webkitRequestFullscreen) {
-            elem.webkitRequestFullscreen();
-        }
+        if (elem.requestFullscreen) elem.requestFullscreen().catch(() => {});
+        else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
         
         document.getElementById('btn-start').style.display = 'none';
         document.getElementById('inst-text').innerHTML = "Nyalakan Perekam Layar HP Anda Sekarang!";
@@ -451,7 +477,7 @@ try {
         if (!startTime) startTime = currentTime;
         const elapsed = currentTime - startTime;
         const progress = Math.min(elapsed / duration, 1);
-        frameCount++; // Hitung frame yang sedang berjalan
+        frameCount++; 
 
         const currentIndex = Math.floor(progress * (fullPath.length - 1));
         const currentPath = fullPath.slice(0, currentIndex + 1);
@@ -464,8 +490,6 @@ try {
             m.setLatLng([lastPoint[0] + offset, lastPoint[1] + offset]);
         });
         
-        // --- OPTIMASI HP KENTANG ---
-        // Panning kamera hanya dilakukan setiap 3 frame sekali (mengurangi beban GPU)
         if (frameCount % 3 === 0 || progress >= 1) {
             const latOffset = (map.getBounds().getNorth() - map.getBounds().getSouth()) * 0.15;
             map.panTo([lastPoint[0] + latOffset, lastPoint[1]], { animate: false });
@@ -496,11 +520,8 @@ try {
                 document.querySelector('.watermark').style.opacity = '0';
                 document.getElementById('ending-overlay').style.display = 'flex';
                 
-                if (document.exitFullscreen) {
-                    document.exitFullscreen().catch(() => {});
-                } else if (document.webkitExitFullscreen) {
-                    document.webkitExitFullscreen();
-                }
+                if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+                else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
                 
                 animationRunning = false;
             }, 1500);

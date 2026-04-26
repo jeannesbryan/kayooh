@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kayooh - Self-Hosted GPS Cycling Tracker</title>
+    <title>Kayooh v5.0 - Ultimate Self-Hosted GPS Cycling Tracker</title>
     <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16x16.png">
@@ -130,7 +130,6 @@
             text-decoration: underline;
         }
 
-        /* PERBAIKAN RESPONSIVE UNTUK LAYAR HP */
         @media (max-width: 768px) {
             body { padding: 0; background-color: var(--white); }
             .container { padding: 30px 20px; border-radius: 0; box-shadow: none; }
@@ -151,58 +150,50 @@
     </div>
 
     <h2>Filosofi & Nilai Jual</h2>
-    <p><b>Kayooh</b> adalah aplikasi pelacak gowes mandiri (Self-Hosted) yang memberikan kedaulatan penuh atas data pribadi Anda. Di dunia di mana data adalah komoditas, Kayooh memastikan jejak rute dan statistik Anda tetap menjadi rahasia Anda, tersimpan aman di server pribadi Anda dengan akurasi sekelas perangkat profesional.</p>
+    <p><b>Kayooh</b> adalah aplikasi pelacak gowes mandiri (Self-Hosted) kelas Enterprise yang memberikan kedaulatan penuh atas data pribadi Anda. Dengan arsitektur hybrid terbaru yang memisahkan beban *database* lokal dan satelit *Object Storage*, Kayooh menjamin kinerja secepat kilat meski menyimpan puluhan ribu rekor gowes Anda seumur hidup.</p>
 
-    <h2>Fitur Unggulan</h2>
+    <h2>Fitur Unggulan v5.0</h2>
     <div class="pro-con-grid">
         <div class="box-list pro-box">
-            <h4>✅ Kelebihan Utama</h4>
+            <h4>✅ Kelebihan Utama & Fitur Super</h4>
             <ul>
-                <li><b>Privasi Mutlak</b>: Data tersimpan di server Anda sendiri tanpa pihak ketiga.</li>
-                <li><b>Live Tracking Telegram</b>: Siaran posisi <i>real-time</i> langsung ke grup Telegram keluarga secara hibrida.</li>
-                <li><b>Peleton Terdesentralisasi (Smart Black Box)</b>: Tamu (Guest) kini memiliki pelacak luring mandiri untuk merekam jarak pribadi (mendukung skenario gowes ke titik kumpul), sembari tetap memancarkan sinyal ke Radar Kapten ala Garmin GroupTrack.</li>
-                <li><b>Multi-Stats Leaderboard Broadcast</b>: Sistem otomatis merakit gambar "Klasemen Peleton" yang berisi statistik jarak dan kecepatan tiap peserta secara individual untuk didistribusikan ke layar HP semua peserta dan Telegram.</li>
-                <li><b>GPX Metadata Injection & X-Ray Sensor</b>: Tamu dapat mengunduh file GPX rute mandiri yang telah disuntikkan "Sandi Rahasia". Saat diimpor ke server pribadi masing-masing, Kayooh otomatis mengenali data tersebut sebagai "Peleton Import" dan memunculkan lencana (👥) peserta Peleton.</li>
-                <li><b>Map Matching OSRM</b>: Garis rute secara cerdas "menempel" rapi di jalan raya.</li>
-                <li><b>Black Box & Magic Bounce</b>: Layaknya aplikasi <i>native</i>, jika Kayooh tertutup paksa di tengah jalan, sistem akan "membanting" Anda kembali ke layar perekaman secara otomatis saat aplikasi dibuka ulang.</li>
-                <li><b>Telemetri Suhu Udara</b>: Analisis cuaca otomatis via Open-Meteo API.</li>
-                <li><b>Stopwatch & Auto-Pause</b>: Timer presisi tinggi berbasis stempel waktu (Timestamp).</li>
-                <li><b>Anti Brute-Force</b>: Gerbang login dilengkapi Database IP Blocker.</li>
-                <li><b>Bebas Biaya Langganan</b>: Semua fitur analitik tersedia gratis 100% selamanya tanpa <i>paywall</i>.</li>
-                <li><b>Mass Strava Sync</b>: Impor otomatis seluruh riwayat gowes historis Anda dari Strava ke peladen lokal tanpa batasan (<i>Pagination Override</i> siap menyedot ribuan aktivitas sekaligus).</li>
-                <li><b>Ekspor GPX Universal</b>: Unduh rute Anda kapan saja untuk dipindah ke platform lain.</li>
-                <li><b>Night Ride Mode</b>: Tema gelap otomatis yang nyaman dan peta anti-silau.</li>
-                <li><b>Offline Mode (PWA)</b>: Install ke HP, aplikasi tetap bisa merender UI dan GPS meski sinyal putus di tengah rute.</li>
-                <li><b>Video Flexing Sinematik</b>: Putar ulang rute gowes dalam animasi video interaktif dengan dukungan <i>Fullscreen</i>, tema Peta otomatis (Light/Dark), dan indikator <i>dot</i> Peleton multi-warna.</li>
-                <li><b>Anti-Sleep Recovery</b>: Bebas balas *chat* saat gowes! Sistem otomatis mengunci ulang layar agar terus menyala (<i>Wake Lock</i>) begitu Anda kembali ke aplikasi.</li>
-                <li><b>Personal Heatmap (Live Theme)</b>: Visualisasikan seluruh "daerah kekuasaan" jejak gowes Anda dalam satu peta bercahaya. Dilengkapi adaptasi peta Terang/Gelap seketika!</li>
-                <li><b>Offline GPX Extractor</b>: Kemerdekaan 100% dari pihak ketiga! Unggah file <code>.gpx</code> dari Head Unit apapun (Garmin, Wahoo, Magene), Kayooh akan langsung membedah dan menghitung rute, elevasi, kecepatan secara luring di peladen Anda.</li>
+                <li><b>Cloudflare R2 Integration</b>: <i>Database</i> SQLite Anda dijamin bebas bengkak! Seluruh titik kordinat masif kini dititipkan dengan aman ke satelit Cloudflare R2 secara instan. Server PHP Anda jadi super ringan.</li>
+                <li><b>Universal Route Parser</b>: Peta pintar yang mampu menerjemahkan segala jenis data secara otomatis: Sandi Strava jadul (Encoded Polyline), JSON Lokal, hingga JSON dari Cloudflare R2.</li>
+                <li><b>IndexedDB Black Box</b>: Penyimpanan darurat (Black Box) kini ditenagai oleh mesin <i>IndexedDB</i>. Tahan banting dari resiko <i>browser crash</i> atau tertutup tak sengaja, data gowes Anda tak akan hilang.</li>
+                <li><b>Peleton Radar Sync</b>: Mesin pengawas terpusat (<code>radar_sync.php</code>) yang menyatukan sinyal seluruh peserta di satu peta secara <i>real-time</i>. Dilengkapi fitur <i>Auto-Clean</i> dan <i>Ghost Sweeper</i> (menghapus peserta yang hilang sinyal).</li>
+                <li><b>Strava Mass-Sync</b>: Mesin penyedot data (Strava Sync) dengan fitur <i>Pagination</i> aman yang mampu menarik ratusan sejarah gowes lawas Anda tanpa membuat server <i>timeout</i> atau duplikat data.</li>
+                <li><b>Live Tracking Telegram</b>: Siaran posisi <i>real-time</i> dan notifikasi Start/Finish langsung ke grup Telegram keluarga secara hibrida untuk memastikan keselamatan Anda di jalan.</li>
+                <li><b>Telemetri Suhu Udara</b>: Sensor cuaca pintar yang mengambil sampel suhu lingkungan otomatis via Open-Meteo API setiap 15 menit, lalu merata-ratakannya di akhir gowes.</li>
+                <li><b>Video Flexing Sinematik</b>: Putar ulang rute gowes dalam animasi video interaktif dengan dukungan layar penuh (Fullscreen) dan visual yang adaptif terhadap Dark/Light Mode. Sangat cocok untuk direkam dan dibagikan ke media sosial.</li>
+                <li><b>Personal Heatmap (Live Theme)</b>: Visualisasikan seluruh "daerah kekuasaan" aspal Anda dalam satu peta bercahaya yang di-<i>render</i> super cepat menggunakan algoritma <i>Asynchronous Loading</i> dan <i>Overlapping Opacity</i>.</li>
+                <li><b>Offline GPX Extractor & Importer</b>: Kemerdekaan mutlak dari pihak ketiga! Ekstrak file <code>.gpx</code> secara <i>offline</i>, atau impor data GPX Peleton teman ke dalam <i>database</i> Anda sendiri (lengkap dengan lencana 👥 Peleton).</li>
+                <li><b>Anti Brute-Force & Safe Logout</b>: Gerbang <i>login</i> dilengkapi <i>Database IP Blocker</i> (memblokir IP setelah 5x gagal). Sistem Logout juga menyapu bersih <i>cache</i> sesi secara elegan di memori peramban.</li>
+                <li><b>Multi-Metrik Otomatis</b>: Kalkulasi presisi tinggi untuk Jarak (Haversine formula), Kecepatan Maksimum, Waktu Bergerak (Moving Time), Elevasi, hingga fitur <i>Auto-Pause</i> cerdas saat Anda berhenti di lampu merah.</li>
             </ul>
         </div>
         <div class="box-list con-box">
             <h4>⚠️ Karakteristik & Catatan Penggunaan</h4>
             <ul>
-                <li><b>Konsumsi Baterai</b>: Menggunakan Wake Lock API agar layar HP terus menyala (mencegah sensor GPS tertidur), sehingga memakan daya lebih besar dibanding aplikasi <i>native</i>.</li>
-                <li><b>Ketergantungan Internet</b>: Meski memori <i>Black Box</i> bisa merekam secara <i>offline</i>, fitur tingkat lanjut (Radar Peleton, Live Telegram, Suhu, dan Map Matching) mewajibkan koneksi aktif.</li>
-                <li><b>Limitasi OS & Background Process</b>: Karena berbasis Web (PWA), sistem operasi (terutama iOS/iPhone) dapat mematikan paksa akses GPS jika peramban di-<i>minimize</i> atau layar dimatikan. Disarankan layar tetap menyala selama gowes.</li>
-                <li><b>Akurasi Hardware</b>: Kualitas pelacakan murni bergantung pada kualitas sensor GPS HP Anda dan kondisi rintangan lingkungan (gedung tinggi/hutan lebat).</li>
-                <li><b>Tanggung Jawab Data & Storage</b>: Pencadangan (<i>backup</i>) SQLite adalah tanggung jawab Anda. File gambar hasil <i>render</i> (Auto-Flexing) yang tersimpan di server juga akan memakan ruang penyimpanan seiring waktu (meski telah dilengkapi pembersih otomatis).</li>
-                <li><b>Wajib HTTPS</b>: Keamanan sensor lokasi dari browser modern dan fitur <i>Clipboard Auto-Copy</i> mewajibkan sertifikat SSL aktif di domain Anda.</li>
-                <li><b>Setup Teknis Lanjutan</b>: Membutuhkan pengetahuan dasar tentang manajemen <i>web server</i>. Anda juga diwajibkan untuk mengonfigurasi Bot API Telegram dan Chat ID secara mandiri.</li>
+                <li><b>Konfigurasi Cloudflare R2 (Wajib)</b>: Agar performa Kayooh bekerja 100%, Anda diwajibkan melakukan <i>setup bucket</i> gratis di Cloudflare R2 dan memasukkan kredensial API-nya di menu Pengaturan Kayooh.</li>
+                <li><b>Konsumsi Baterai Ekstra</b>: Aplikasi ini menggunakan <i>Wake Lock API</i> agar layar HP terus menyala (mencegah sensor GPS tertidur oleh OS HP). Pastikan baterai Anda penuh atau bawa <i>Powerbank</i> untuk <i>touring</i> jarak jauh.</li>
+                <li><b>Ketergantungan Internet</b>: Meski memori <i>Black Box</i> (IndexedDB) bisa merekam secara <i>offline</i> saat di area <i>blank-spot</i>, fitur tingkat lanjut seperti Radar Peleton, Live Telegram, dan penyimpanan R2 mewajibkan koneksi internet aktif, terutama di garis <i>finish</i>.</li>
+                <li><b>Sertifikat SSL (HTTPS) Mutlak</b>: Fitur keamanan sensor Geolocation pada <i>browser</i> modern (Chrome/Safari) mewajibkan akses melalui HTTPS. Aplikasi tidak akan bisa membaca GPS jika diakses hanya dengan HTTP.</li>
+                <li><b>Akurasi GPS Bergantung pada Perangkat</b>: Kayooh meminta izin <i>enableHighAccuracy</i> ke perangkat Anda. Jika cuaca sangat buruk atau HP berada jauh di dalam tas/kantong tebal, rute garis (polyline) mungkin akan sedikit melompat.</li>
             </ul>
         </div>
     </div>
 
     <h2>Transparansi & API Eksternal</h2>
-    <p>Demi menjaga performa kelas atas tanpa mengorbankan privasi, Kayooh mengandalkan beberapa layanan publik dan API yang dikelola secara independen. Sistem tidak pernah mengekspos kata sandi atau data sensitif Anda:</p>
+    <p>Kayooh sangat menghargai privasi Anda. Aplikasi ini hanya mengandalkan beberapa layanan publik dan API kelas kakap untuk memaksimalkan fitur tanpa mengorbankan kedaulatan data Anda:</p>
     <ul>
-        <li><b>Telegram Bot API</b>: Digunakan untuk membangun "Grup Komando", menyiarkan <i>Live Location</i>, dan mengirim rangkuman metrik gowes otomatis ke ruang obrolan pribadi Anda.</li>
-        <li><b>Open-Meteo API</b>: Digunakan murni untuk menghitung total elevasi bukit dan mengambil sampel suhu udara setiap 15 menit berjalan.</li>
+        <li><b>Cloudflare R2 Storage</b>: Bertindak sebagai "Satelit/Gudang Kontainer" tempat jutaan titik kordinat GPS Anda bersandar dengan aman, cepat, dan tanpa membebani <i>server hosting</i> pribadi.</li>
+        <li><b>Telegram Bot API</b>: Digunakan untuk membangun "Grup Komando", menyiarkan <i>Live Location</i> (Radar), dan mengirim rangkuman metrik gowes otomatis ke ruang obrolan pribadi Anda.</li>
+        <li><b>Open-Meteo API</b>: Digunakan murni untuk menghitung total elevasi bukit dan mengambil sampel suhu udara lingkungan setiap 15 menit berjalan.</li>
         <li><b>OSRM (Open Source Routing Machine) API</b>: Berperan sebagai "tukang setrika" yang menempelkan titik-titik koordinat GPS Anda agar rapi mengikuti alur aspal di peta.</li>
-        <li><b>OpenStreetMap (OSM)</b>: Dimuat melalui <i>library</i> Leaflet.js sebagai kanvas visual pemetaan.</li>
-        <li><b>Strava API</b>: Digunakan hanya jika Anda memilih untuk melakukan "Sync Strava" secara sukarela.</li>
-        <li><b>CartoDB Maps API</b>: Digunakan sebagai <i>basemap</i> beresolusi tinggi pada Studio Video Flexing untuk mengakomodasi tema <i>Dark/Light Mode</i> secara dinamis.</li>
-        <li><b>HTML5 Fullscreen API</b>: Memungkinkan Studio Video Kayooh menelan seluruh layar HP demi hasil rekaman layar yang bersih.</li>
+        <li><b>OpenStreetMap (OSM)</b>: Dimuat melalui <i>library</i> Leaflet.js sebagai kanvas visual pemetaan dasar.</li>
+        <li><b>CartoDB Maps API</b>: Digunakan sebagai <i>basemap</i> beresolusi tinggi pada Studio Video Flexing dan Personal Heatmap untuk mengakomodasi transisi tema <i>Dark/Light Mode</i> secara dinamis.</li>
+        <li><b>Strava API</b>: Digunakan hanya jika Anda memilih untuk melakukan "Sync Strava" secara sukarela untuk menyedot data historis.</li>
+        <li><b>HTML5 Fullscreen & WakeLock API</b>: Memungkinkan Studio Video Kayooh menelan seluruh layar HP demi hasil rekaman layar yang bersih, serta menjaga layar dan sensor GPS tetap hidup menyala saat merekam gowes di aspal.</li>
     </ul>
 
     <h2>Panduan Instalasi Server (First-Time Setup)</h2>
@@ -253,11 +244,11 @@
         </ol>
 
         <h3>Langkah 5: Siap Gowes! 🚀</h3>
-        <p>Sekarang, Anda tidak perlu repot lagi! Klik <b>🔴 RECORD RIDE</b> di Kayooh, lalu pilih mode:</p>
+        <p>Sekarang, Anda tidak perlu repot lagi! Buka Dashboard Kayooh, lalu pilih mode gowes Anda:</p>
         <ul>
-            <li><b>Single Ride:</b> Peta Live Location akan langsung muncul di Grup Telegram keluarga Anda!</li>
-            <li><b>Mode Peleton:</b> Anda bisa membagikan <b>Link Radar Web</b> ke teman-teman gowes. Titik Anda dan titik teman-teman Anda akan muncul bersamaan di satu peta khusus.</li>
-            <li>Saat Anda menekan "Simpan", Bot Telegram akan otomatis mengirimkan rangkuman kecepatan, jarak, elevasi, suhu, beserta gambar keren pamer ke grup tersebut!</li>
+            <li><b>Single Ride:</b> Klik <b>🚀 SOLO</b>. Peta Live Location dan notifikasi otomatis akan langsung muncul di Grup Telegram keluarga Anda!</li>
+            <li><b>Mode Peleton:</b> Klik <b>👥 PELETON</b>. Anda bisa membagikan <b>Link Radar Web</b> ke teman-teman gowes. Titik Anda dan titik teman-teman Anda akan muncul bersamaan di satu peta khusus.</li>
+            <li>Saat Anda menekan tombol Selesai, Bot Telegram akan otomatis mengirimkan rangkuman kecepatan, jarak, elevasi, suhu, beserta gambar keren pamer ke grup tersebut!</li>
         </ul>
     </div>
 
@@ -267,25 +258,24 @@
     <div class="guide-step">
         <h3>Langkah 1: Inisiasi oleh Kapten (Host)</h3>
         <ol>
-            <li>Buka Dashboard Kayooh, klik <b>🔴 RECORD RIDE</b>.</li>
-            <li>Pilih mode <b>🤝 Co-Gowes (Peleton)</b>. Sistem akan otomatis men-<i>generate</i> 4 digit <i>Room ID</i> unik.</li>
-            <li>Klik tombol <b>📋 COPY LINK</b>, lalu bagikan tautan tersebut ke grup obrolan (WA/Telegram) teman-teman gowes Anda.</li>
-            <li>Klik <b>▶️ GAS PELETON</b> untuk mulai merekam aktivitas.</li>
+            <li>Buka Dashboard Kayooh, klik tombol <b>👥 PELETON</b>.</li>
+            <li>Sistem akan otomatis men-<i>generate</i> <b>6 digit Room ID</b> unik (atau Anda bisa mengetikkan nama Room sendiri).</li>
+            <li>Klik tombol <b>🔗 COPY LINK</b> di dalam layar perekaman, lalu bagikan tautan tersebut ke grup obrolan (WA/Telegram) teman-teman gowes Anda.</li>
+            <li>Klik tombol hijau <b>▶️ MULAI GOWES PELETON</b> untuk mulai merekam aktivitas.</li>
         </ol>
 
         <h3>Langkah 2: Bergabung ke Radar (Guest)</h3>
         <ol>
-            <li>Peserta (Guest) cukup mengklik tautan yang dibagikan Kapten (tidak perlu mendaftar akun atau instal aplikasi).</li>
-            <li>Masukkan nama panggilan (maksimal 15 huruf), lalu klik <b>🚀 MULAI GOWES</b>.</li>
-            <li><i>Browser</i> Guest akan secara ajaib **menghitung jarak tempuh pribadi di latar belakang** sekaligus memancarkan kordinat ke server Kapten. <br><b>⚠️ Penting:</b> Pastikan layar HP dibiarkan menyala agar sensor GPS maksimal!</li>
+            <li>Peserta (Guest) cukup mengklik tautan Radar yang dibagikan Kapten (tidak perlu mendaftar akun atau instal aplikasi).</li>
+            <li>Masukkan nama panggilan (maksimal 15 huruf), lalu klik <b>🚀 MULAI TRACKING</b>.</li>
+            <li><i>Browser</i> Guest akan secara ajaib <b>menghitung jarak tempuh pribadi di latar belakang</b> sekaligus memancarkan kordinat ke server Kapten. <br><b>⚠️ Penting:</b> Pastikan layar HP dibiarkan menyala agar sensor GPS maksimal!</li>
         </ol>
 
         <h3>Langkah 3: Akhiri, Simpan Peserta, & Flexing Ekosistem!</h3>
         <ol>
-            <li>Setelah sampai di garis <i>finish</i>, Kapten menekan tombol <b>⬜ STOP RIDE</b> lalu <b>💾 SIMPAN AKTIVITAS</b>.</li>
-            <li>Sistem akan memunculkan <i>prompt</i> otomatis. Masukkan nama-nama peserta untuk disimpan permanen ke riwayat Kapten.</li>
-            <li>Di halaman Detail, klik <b>📢 BROADCAST PELETON</b>. Kayooh akan langsung menarik metrik individual dari tiap peserta dan merakitnya menjadi gambar **Klasemen Multi-Stats** untuk dikirim ke Telegram dan ke layar HP seluruh peserta!</li>
-            <li><b>Bonus Untuk Guest:</b> Setelah sesi selesai, di layar Guest akan muncul tombol <b>"📥 AMANKAN GPX SAYA"</b>. Guest dapat mengunduh file GPX rute mandirinya yang sudah tertanam Sandi Rahasia Peleton. Saat GPX ini diunggah ke *server* Kayooh miliknya sendiri, riwayat Peleton akan otomatis sinkron!</li>
+            <li>Setelah sampai di garis <i>finish</i>, Kapten menekan tombol <b>🏁 SELESAI GOWES PELETON</b>.</li>
+            <li>Sistem akan memunculkan <i>prompt</i> otomatis. Konfirmasi nama-nama peserta untuk disimpan permanen ke riwayat Kapten. Kayooh akan langsung memecah kordinat (Chunking) dan mengirimkannya ke satelit R2!</li>
+            <li><b>Bonus Untuk Guest:</b> Sesaat setelah Kapten menekan tombol selesai, di layar Guest akan otomatis memunculkan tombol <b>"📥 AMANKAN GPX SAYA"</b>. Guest dapat mengunduh file GPX rute mandirinya yang sudah tertanam Sandi Rahasia Peleton. Saat GPX ini diunggah ke <i>server</i> Kayooh miliknya sendiri, riwayat Peleton akan otomatis sinkron!</li>
         </ol>
     </div>
 
@@ -317,10 +307,10 @@
 
         <h3>Langkah 3: Menghubungkan ke Kayooh</h3>
         <ol>
-            <li>Buka Dashboard Kayooh Anda, lalu klik tombol <b>SYNC STRAVA</b>.</li>
-            <li>Masukkan <i>Client ID</i> dan <i>Client Secret</i> tadi ke form, lalu klik <b>Simpan Pengaturan</b>.</li>
+            <li>Buka Dashboard Kayooh Anda, lalu klik tombol <b>🧡 SYNC</b> di deretan menu atas.</li>
+            <li>Masukkan <i>Client ID</i> dan <i>Client Secret</i> tadi ke form, lalu klik <b>SIMPAN PENGATURAN</b>.</li>
             <li>Klik tombol <b>🔑 Dapatkan Token Sakti</b>. Berikan izin akses pada halaman Strava yang muncul.</li>
-            <li>Setelah kembali ke Kayooh, klik <b>SINKRONISASI SEKARANG</b> untuk mulai mengimpor data.</li>
+            <li>Setelah kembali ke Kayooh, klik <b>SINKRONISASI SEKARANG</b> untuk mulai mengimpor data sejarah gowes Anda.</li>
         </ol>
     </div>
 

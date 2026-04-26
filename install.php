@@ -34,7 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($pesan_error)) {
             $pdo = new PDO("sqlite:" . $db_file);
             $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-            // EKSEKUSI PEMBUATAN STRUKTUR TABEL KAYOOH V4.0
+            // 1. EKSEKUSI PEMBUATAN TABEL LENGKAP (V4 + V5 Ready)
             $pdo->exec("
                 CREATE TABLE IF NOT EXISTS users (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -61,23 +61,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($pesan_error)) {
                     attempts INTEGER DEFAULT 1,
                     last_attempt INTEGER NOT NULL
                 );
-                -- TABEL BARU: Menyimpan Token Telegram & Pengaturan Lainnya
                 CREATE TABLE IF NOT EXISTS settings (
                     setting_key TEXT PRIMARY KEY,
                     setting_value TEXT
                 );
             ");
 
+            // 2. JURUS V5.0: BUAT FOLDER PENAMPUNGAN CHUNKING R2
+            $temp_dir = __DIR__ . '/temp';
+            if (!is_dir($temp_dir)) {
+                mkdir($temp_dir, 0755, true);
+            }
+
+            // 3. DAFTARKAN ADMIN KE TABEL USERS
             $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+            
+            // Bersihkan data lama jika install ulang, lalu masukkan yang baru
+            $pdo->exec("DELETE FROM users"); 
             $stmt = $pdo->prepare("INSERT INTO users (email, password) VALUES (?, ?)");
             $stmt->execute([$email, $hashed_password]);
 
-            file_put_contents($lock_file, 'Instalasi selesai: ' . date('Y-m-d H:i:s'));
+            // 4. KUNCI INSTALASI
+            file_put_contents($lock_file, 'Instalasi Kayooh v5.0 selesai pada ' . date('Y-m-d H:i:s'));
+
             $_SESSION['is_logged_in'] = true;
             header('Location: dashboard.php');
             exit;
+
         } catch (PDOException $e) {
-            $pesan_error = "Gagal database: " . $e->getMessage();
+            $pesan_error = 'Gagal membuat database v5.0: ' . $e->getMessage();
         }
     }
 }

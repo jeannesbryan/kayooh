@@ -1,70 +1,50 @@
 <?php
-// login.php - Pintu Masuk Kayooh (Secure + Database IP Rate Limiting)
+// login.php - Pintu Masuk Kayooh v5.0 (Secure & Refactored)
 session_start();
 
 $lock_file = __DIR__ . '/install.lock';
 $db_file = __DIR__ . '/kayooh.sqlite';
 
-// Keamanan ekstra: Jika belum diinstal, arahkan ke instalasi
-if (!file_exists($lock_file)) {
-    header('Location: install.php');
-    exit;
-}
-
+// Jika belum diinstal, arahkan ke instalasi
+if (!file_exists($lock_file)) { header('Location: install.php'); exit; }
 // Jika sudah login, langsung ke dashboard
-if (isset($_SESSION['is_logged_in']) && $_SESSION['is_logged_in'] === true) {
-    header('Location: dashboard.php');
-    exit;
-}
+if ($_SESSION['is_logged_in'] ?? false) { header('Location: dashboard.php'); exit; }
 
 $pesan_error = '';
 
-// Helper Security: Mendapatkan IP asli pengunjung (Tembus Proxy/Cloudflare)
+// Helper Security: Dapatkan IP asli (Tembus Cloudflare/Proxy)
 function getClientIP() {
-    if (isset($_SERVER["HTTP_CF_CONNECTING_IP"])) {
-        return $_SERVER["HTTP_CF_CONNECTING_IP"];
-    }
-    if (isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-        $ipList = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
-        return trim($ipList[0]);
-    }
-    return $_SERVER['REMOTE_ADDR'] ?? 'UNKNOWN';
+    return $_SERVER["HTTP_CF_CONNECTING_IP"] ?? trim(explode(',', $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '')[0]) ?? $_SERVER['REMOTE_ADDR'] ?? 'UNKNOWN';
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $ip_address = getClientIP();
+    $ip = getClientIP();
     
     try {
         $pdo = new PDO("sqlite:" . $db_file);
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-        // Security 1: Sapu bersih log IP yang sudah kadaluarsa (lebih dari 5 menit / 300 detik)
+        // Security 1: Sapu bersih log IP yang kadaluarsa (> 5 menit)
         $pdo->exec("DELETE FROM login_logs WHERE last_attempt < " . (time() - 300));
 
-        // Security 2: Cek status IP saat ini di database
+        // Security 2: Cek status IP saat ini
         $stmt_check = $pdo->prepare("SELECT attempts FROM login_logs WHERE ip_address = ?");
-        $stmt_check->execute([$ip_address]);
+        $stmt_check->execute([$ip]);
         $log = $stmt_check->fetch();
 
-        // Jika percobaan sudah 5 kali atau lebih, langsung Banned!
+        // Jika percobaan gagal >= 5 kali, Banned sementara!
         if ($log && $log['attempts'] >= 5) {
-            $pesan_error = "Sistem dikunci sementara wak! Terlalu banyak percobaan gagal dari IP jaringan Anda. Coba lagi dalam 5 menit.";
+            $pesan_error = "Sistem dikunci sementara! Terlalu banyak percobaan gagal dari IP Anda. Coba lagi dalam 5 menit.";
         } else {
-            // Jika IP masih aman, proses verifikasi email & password
             $email = filter_var(trim($_POST['email']), FILTER_SANITIZE_EMAIL);
-            $password = $_POST['password'];
-
             $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ?");
             $stmt->execute([$email]);
             $user = $stmt->fetch();
 
-            // Verifikasi password
-            if ($user && password_verify($password, $user['password'])) {
-                // Berhasil login: Hapus catatan dosa (IP log)
-                $stmt_clear = $pdo->prepare("DELETE FROM login_logs WHERE ip_address = ?");
-                $stmt_clear->execute([$ip_address]);
-
-                // Mencegah Session Fixation Attack
+            // Verifikasi
+            if ($user && password_verify($_POST['password'], $user['password'])) {
+                // Sukses: Hapus dosa IP & Cegah Session Fixation
+                $pdo->prepare("DELETE FROM login_logs WHERE ip_address = ?")->execute([$ip]);
                 session_regenerate_id(true); 
                 
                 $_SESSION['is_logged_in'] = true;
@@ -73,22 +53,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 header('Location: dashboard.php');
                 exit;
             } else {
-                // Gagal login: Catat IP dan tambah jumlah percobaan
+                // Gagal: Catat IP / Tambah percobaan
                 if ($log) {
-                    // Update jumlah percobaan jika IP sudah pernah salah sebelumnya
-                    $stmt_fail = $pdo->prepare("UPDATE login_logs SET attempts = attempts + 1, last_attempt = ? WHERE ip_address = ?");
-                    $stmt_fail->execute([time(), $ip_address]);
+                    $pdo->prepare("UPDATE login_logs SET attempts = attempts + 1, last_attempt = ? WHERE ip_address = ?")->execute([time(), $ip]);
                 } else {
-                    // Masukkan IP baru yang baru pertama kali salah
-                    $stmt_fail = $pdo->prepare("INSERT INTO login_logs (ip_address, attempts, last_attempt) VALUES (?, 1, ?)");
-                    $stmt_fail->execute([$ip_address, time()]);
+                    $pdo->prepare("INSERT INTO login_logs (ip_address, attempts, last_attempt) VALUES (?, 1, ?)")->execute([$ip, time()]);
                 }
-                $pesan_error = "Email atau password salah, wak!";
+                $pesan_error = "Email atau password salah, Kapten!";
             }
         }
-    } catch (PDOException $e) {
-        $pesan_error = "Masalah koneksi database: " . $e->getMessage();
-    }
+    } catch (PDOException $e) { $pesan_error = "Masalah koneksi database: " . $e->getMessage(); }
 }
 ?>
 <!DOCTYPE html>
@@ -113,7 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="centered-container">
         <div class="box">
             <img src="assets/kayooh.png" alt="Kayooh" style="height: 45px; margin-bottom: 10px;">
-            <p class="subtitle" style="color:var(--text-color); opacity:0.7; font-size:12px;">Secure GPS Tracker</p>
+            <p class="subtitle" style="color:var(--text-color); opacity:0.7; font-size:12px;">Secure GPS Tracker v5.0</p>
             
             <?php if($pesan_error): ?>
                 <div class="error"><?= htmlspecialchars($pesan_error) ?></div>
@@ -135,33 +109,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 
     <script>
-        // Logika Toggle Tema
-        function toggleTheme() {
+        // --- THEME ENGINE ---
+        const toggleTheme = () => {
             document.body.classList.toggle('dark-mode');
             const isDark = document.body.classList.contains('dark-mode');
             localStorage.setItem('theme', isDark ? 'dark' : 'light');
             document.getElementById('theme-icon').textContent = isDark ? '☀️' : '🌙';
-        }
-        
-        // Sesuaikan ikon saat halamana selesai diload
-        window.onload = () => { 
+        };
+
+        window.addEventListener('DOMContentLoaded', () => { 
             if(localStorage.getItem('theme') === 'dark') {
                 document.getElementById('theme-icon').textContent = '☀️';
             }
-        }
+        });
 
-        // Logika Sembunyikan/Lihat Sandi
-        function togglePassword() {
-            var pwd = document.getElementById("password");
-            var btn = document.querySelector(".toggle-btn");
-            if (pwd.type === "password") {
-                pwd.type = "text";
-                btn.textContent = "SEMBUNYI";
-            } else {
-                pwd.type = "password";
-                btn.textContent = "LIHAT";
-            }
-        }
+        // --- PASSWORD TOGGLE ---
+        const togglePassword = () => {
+            const pwd = document.getElementById("password");
+            const btn = document.querySelector(".toggle-btn");
+            const isText = pwd.type === "text";
+            
+            pwd.type = isText ? "password" : "text";
+            btn.textContent = isText ? "LIHAT" : "SEMBUNYI";
+        };
     </script>
 </body>
 </html>

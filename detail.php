@@ -643,36 +643,67 @@ try {
         return points;
     }
 
+    // ==========================================
+    // HYBRID MAP ENGINE (v5.0 - CLOUDFLARE R2 READY)
+    // ==========================================
     const rawData = <?= json_encode($data['polyline'] ?? '') ?>;
-    const coords = decodePolyline(rawData);
-
-    // INISIALISASI PETA 1: STANDARD
+    
+    // Siapkan wadah peta
     const mapStd = L.map('map', { zoomControl: false }); 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap', crossOrigin: true 
     }).addTo(mapStd);
 
-    if (coords.length > 0) {
-        const polylineStd = L.polyline(coords, {color: '#FF6600', weight: 5, opacity: 0.8}).addTo(mapStd);
-        mapStd.fitBounds(polylineStd.getBounds(), {padding: [30, 30]});
-    } else {
-        mapStd.setView([-7.801, 110.373], 13);
-    }
-
-    // INISIALISASI PETA 2: MINIMALIST
     const mapMin = L.map('minimal-map', { 
-        zoomControl: false, 
-        attributionControl: false,
-        dragging: false, 
-        scrollWheelZoom: false 
+        zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false 
     });
 
-    if (coords.length > 0) {
-        const polylineMin = L.polyline(coords, {color: '#FF6600', weight: 6, opacity: 1}).addTo(mapMin);
-        mapMin.fitBounds(polylineMin.getBounds(), {padding: [40, 40]});
-    } else {
-        mapMin.setView([-7.801, 110.373], 13);
+    // Variabel global agar tetap bisa diakses oleh engine Canvas (Share Map)
+    let coords = [];
+
+    // Fungsi canggih pemuat data
+    async function loadMapData() {
+        if (!rawData || rawData.trim() === '') {
+            mapStd.setView([-7.801, 110.373], 13);
+            mapMin.setView([-7.801, 110.373], 13);
+            return;
+        }
+
+        try {
+            // CEK APAKAH INI LINK R2 (v5.0) ATAU TEKS LAMA (v4.0)
+            if (rawData.startsWith('http')) {
+                console.log("📡 Menerima rute satelit R2...");
+                const response = await fetch(rawData);
+                if (!response.ok) throw new Error("Gagal mengambil data dari R2");
+                
+                // Asumsi data dari R2 sudah berupa Array JSON murni [[lat,lng], ...] 
+                // hasil rakitan di api_save_ride.php
+                coords = await response.json(); 
+            } else {
+                // GOWES LAMA: Gunakan fungsi decodePolyline bawaan sampeyan
+                coords = decodePolyline(rawData);
+            }
+
+            // GAMBAR KE KEDUA PETA
+            if (coords && coords.length > 0) {
+                // Peta Standard (Utama)
+                const polylineStd = L.polyline(coords, {color: '#FF6600', weight: 5, opacity: 0.8}).addTo(mapStd);
+                mapStd.fitBounds(polylineStd.getBounds(), {padding: [30, 30]});
+                L.circleMarker(coords[0], { radius: 5, color: '#27ae60', fillOpacity: 1 }).addTo(mapStd);
+                L.circleMarker(coords[coords.length - 1], { radius: 5, color: '#c0392b', fillOpacity: 1 }).addTo(mapStd);
+
+                // Peta Minimalis (Untuk Canvas/Share)
+                const polylineMin = L.polyline(coords, {color: '#FF6600', weight: 6, opacity: 1}).addTo(mapMin);
+                mapMin.fitBounds(polylineMin.getBounds(), {padding: [40, 40]});
+            }
+        } catch (e) {
+            console.error("Gagal memuat rute peta:", e);
+            document.getElementById('map').innerHTML = "<div style='display:flex;justify-content:center;align-items:center;height:100%;color:#c0392b;font-weight:bold;'>❌ Gagal memuat peta dari satelit R2.</div>";
+        }
     }
+
+    // Jalankan mesin!
+    loadMapData();
 
     // ==========================================
     // ENGINE UPLOAD BROADCAST PELETON

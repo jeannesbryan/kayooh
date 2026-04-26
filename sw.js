@@ -1,13 +1,18 @@
-const CACHE_NAME = 'kayooh-v4-bunker';
+const CACHE_NAME = 'kayooh-v5-bunker';
 
 // Aset yang WAJIB ada di cache agar UI tidak hancur saat offline
 const STATIC_ASSETS = [
+    './index.php',
     './login.php',       
     './dashboard.php',
-    './record.php',      
+    './record_single.php',  // Mesin Solo Baru
+    './record_peleton.php', // Mesin Peleton Baru
+    './radar.php',          // Pengganti guest.php
     './detail.php',      
-    './activities.php',  
-    './gpx_import.php',  // [UPDATE v4.0] Pre-cache mesin GPX Luring
+    './gpx_import.php',  
+    './heatmap.php',        // Peta Panas R2
+    './video_flex.php',     // Studio Video
+    './sync_strava.php',    // Mesin Strava
     './assets/style.css',
     './assets/kayooh.png',
     './assets/favicon-32x32.png',
@@ -41,6 +46,7 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
     const req = event.request;
 
+    // Strategi Cache-First untuk Aset Statis (CSS, Gambar, JS Eksternal)
     if (req.url.match(/\.(css|js|png|jpg|jpeg|svg|woff2|webmanifest)$/) || req.url.includes('unpkg.com')) {
         event.respondWith(
             caches.match(req).then(cachedRes => {
@@ -55,6 +61,7 @@ self.addEventListener('fetch', event => {
         return;
     }
 
+    // Strategi Network-First dengan Fallback Offline untuk Halaman PHP
     event.respondWith(
         fetch(req).then(fetchRes => {
             return caches.open(CACHE_NAME).then(cache => {
@@ -76,20 +83,20 @@ self.addEventListener('fetch', event => {
                         <meta name="viewport" content="width=device-width, initial-scale=1.0">
                         <title>Offline - Kayooh</title>
                         <style>
-                            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #F4F4F9; color: #2C3E50; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; text-align: center; }
-                            .box { background: white; padding: 40px 30px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); max-width: 400px; width: 100%; }
-                            h2 { color: #FF6600; margin-bottom: 10px; font-weight: 900; letter-spacing: -0.5px; }
-                            p { font-size: 14px; color: #7f8c8d; line-height: 1.6; margin-bottom: 25px; }
-                            .btn { background: #FF6600; color: white; border: none; padding: 14px 20px; border-radius: 10px; font-weight: bold; width: 100%; cursor: pointer; text-transform: uppercase; font-size: 13px; }
+                            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #121212; color: #f1f5f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; text-align: center; }
+                            .box { background: #1e1e1e; padding: 40px 30px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); max-width: 400px; width: 100%; border: 1px solid #333; }
+                            h2 { color: #e67e22; margin-bottom: 10px; font-weight: 900; letter-spacing: -0.5px; }
+                            p { font-size: 14px; color: #bdc3c7; line-height: 1.6; margin-bottom: 25px; }
+                            .btn { background: #e67e22; color: white; border: none; padding: 14px 20px; border-radius: 10px; font-weight: bold; width: 100%; cursor: pointer; text-transform: uppercase; font-size: 13px; }
                         </style>
                     </head>
                     <body>
                         <div class="box">
                             <h2 style="font-size: 40px; margin: 0;">📡</h2>
                             <h2>KONEKSI TERPUTUS</h2>
-                            <p>Sinyal internet Anda hilang atau sedang berada di <i>blank spot</i>, wak. Silakan periksa koneksi lalu coba muat ulang halaman.</p>
+                            <p>Sinyal internet Anda hilang atau sedang berada di <i>blank spot</i>, Kapten! Silakan periksa koneksi lalu coba muat ulang halaman.</p>
                             <button class="btn" onclick="location.reload()">COBA LAGI</button>
-                            <p style="margin-top: 15px; font-size: 11px; opacity: 0.6;">(Aktivitas Record GPS yang sedang berjalan tidak akan terpengaruh)</p>
+                            <p style="margin-top: 15px; font-size: 11px; opacity: 0.6; color:#e74c3c;">(Jangan khawatir, Black Box tetap merekam rute Anda di latar belakang)</p>
                         </div>
                     </body>
                     </html>`,
