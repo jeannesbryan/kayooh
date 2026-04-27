@@ -68,6 +68,21 @@ $captain_name = $settings['captain_name'] ?? 'Kapten';
         #progressFill { width: 0%; height: 100%; background: var(--primary); transition: width 0.3s; }
         
         .peleton-label { background: rgba(0,0,0,0.7); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; white-space: nowrap; }
+
+        /* --- RADIO PELETON UI (v7.0) --- */
+        .radio-panel { position: fixed; bottom: 180px; right: 15px; width: 200px; background: rgba(44, 62, 80, 0.85); border-radius: 12px; padding: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); z-index: 1000; border: 1px solid rgba(255,255,255,0.1); display: none; }
+        .radio-header { display: flex; justify-content: space-between; align-items: center; font-size: 11px; font-weight: bold; color: #f39c12; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; }
+        .radio-feed { max-height: 120px; overflow-y: auto; margin-bottom: 10px; display: flex; flex-direction: column; gap: 5px; }
+        .radio-item { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.05); border-radius: 8px; padding: 5px 8px; cursor: pointer; pointer-events: auto; }
+        .radio-item.new { border: 1px solid #2ecc71; animation: pulse-green 1.5s infinite; }
+        .radio-avatar { min-width: 24px; height: 24px; background: #3498db; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 10px; font-weight: bold; color: white; }
+        .radio-info { flex: 1; display: flex; flex-direction: column; overflow: hidden; white-space: nowrap; }
+        .radio-user { font-size: 11px; font-weight: bold; text-overflow: ellipsis; overflow: hidden; }
+        .radio-time { font-size: 9px; opacity: 0.6; }
+        .btn-ptt { width: 100%; background: #e74c3c; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: bold; font-size: 11px; cursor: pointer; pointer-events: auto; user-select: none; -webkit-user-select: none; transition: 0.2s; }
+        .btn-ptt.recording { background: #c0392b; animation: pulse-red 1s infinite; }
+        @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(192, 57, 43, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(192, 57, 43, 0); } 100% { box-shadow: 0 0 0 0 rgba(192, 57, 43, 0); } }
+        @keyframes pulse-green { 0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7); } 70% { box-shadow: 0 0 0 5px rgba(46, 204, 113, 0); } 100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); } }
     </style>
 </head>
 <body>
@@ -94,6 +109,14 @@ $captain_name = $settings['captain_name'] ?? 'Kapten';
     </div>
 
     <div id="map"></div>
+
+    <div id="radioPanel" class="radio-panel">
+        <div class="radio-header"><span>🎙️ RADIO PELETON</span><span style="opacity:0.5">v7.0</span></div>
+        <div class="radio-feed" id="radioFeed"></div>
+        <button class="btn-ptt" id="btnPTT" onmousedown="startPTT(event)" onmouseup="stopPTT(event)" onmouseleave="stopPTT(event)" ontouchstart="startPTT(event)" ontouchend="stopPTT(event)">
+            🎤 TAHAN UNTUK BICARA
+        </button>
+    </div>
 
     <div class="overlay-ui bottom-bar">
         <div id="gps-info" style="text-align: center; font-size: 12px; font-weight: bold; margin-bottom: 15px; color: #bdc3c7; background: rgba(0,0,0,0.5); padding: 5px; border-radius: 5px; pointer-events: auto;">
@@ -187,8 +210,15 @@ $captain_name = $settings['captain_name'] ?? 'Kapten';
         let isRecording = false, isAutoPaused = false, watchId = null, timerInterval = null;
         let totalDistance = 0, maxSpeed = 0, lastPos = null;
         let accumulatedTimeMs = 0, currentStartTimeMs = 0, secondsElapsed = 0;
+        // --- VARIABEL SMART VOICE COACH ---
+        let nextVoiceMilestone = 5; // Target bacot pertama di 5 KM
 
         let tempLog = [], lastTempFetch = 0, wakeLock = null;
+
+        // --- VARIABEL RADIO PELETON ---
+        let mediaRecorder = null, audioChunks = [], radioSyncInterval = null;
+        let lastRadioSync = Math.floor(Date.now() / 1000) - 30; // Mundur 30 detik untuk fetch awal
+        let isPttActive = false;
 
         // 4. FITUR SAKTI: WAKELOCK, SUHU & BLACKBOX
         async function requestWakeLock() {
@@ -229,6 +259,8 @@ $captain_name = $settings['captain_name'] ?? 'Kapten';
                 if (data.room_id !== ROOM_ID) return; 
 
                 totalDistance = data.totalDistance || 0; maxSpeed = data.maxSpeed || 0;
+                // Kembalikan ingatan Voice Coach agar tahu kapan harus ngoceh lagi
+                nextVoiceMilestone = Math.floor(totalDistance / 5) * 5 + 5;
                 accumulatedTimeMs = data.accumulatedTimeMs || 0; isAutoPaused = data.isAutoPaused || false;
                 tempLog = data.tempLog || []; lastTempFetch = data.lastTempFetch || 0; lastPos = data.lastPos || null;
 
@@ -260,10 +292,13 @@ $captain_name = $settings['captain_name'] ?? 'Kapten';
             clearIndexedDB(); clearBlackBox();
             isRecording = true; isAutoPaused = false;
             currentStartTimeMs = Date.now(); accumulatedTimeMs = 0;
-            totalDistance = 0; maxSpeed = 0; pathLine.setLatLngs([]); tempLog = []; lastPos = null;
+            totalDistance = 0; maxSpeed = 0; nextVoiceMilestone = 5; pathLine.setLatLngs([]); tempLog = []; lastPos = null;
             
             document.getElementById('btnStart').style.display = 'none';
             document.getElementById('btnStop').style.display = 'block';
+            // Tampilkan panel radio & minta izin Mikrofon
+            document.getElementById('radioPanel').style.display = 'block';
+            initRadio();
             document.getElementById('gps-info').innerHTML = '<span style="color:#2ecc71;">● MEREKAM (MENCARI SINYAL...)</span>';
 
             if (TG_TOKEN && TG_CHAT_ID) {
@@ -329,6 +364,13 @@ $captain_name = $settings['captain_name'] ?? 'Kapten';
                             
                             // BUG "JANGKAR TERSERET" DIBASMI DI SINI!
                             lastPos = currentPos;
+
+                            // --- TRIGGER VOICE COACH TIAP KELIPATAN MILESTONE ---
+                            if (totalDistance >= nextVoiceMilestone) {
+                                let currentAvgSpeed = secondsElapsed > 0 ? (totalDistance / (secondsElapsed / 3600)) : 0;
+                                announceStats(totalDistance, currentAvgSpeed);
+                                nextVoiceMilestone += 5; // Set target ngoceh berikutnya (tambah 5 KM lagi)
+                            }
                         }
                     } else {
                         saveToIndexedDB({ lat: latitude, lng: longitude, time: Date.now() });
@@ -344,6 +386,144 @@ $captain_name = $settings['captain_name'] ?? 'Kapten';
             }, (err) => console.error(err), { enableHighAccuracy: true });
         }
 
+        // --- ENGINE RADIO PELETON (v7.0) ---
+        async function initRadio() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                
+                mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+                mediaRecorder.onstop = uploadVoice;
+                
+                // Mulai ping cek pesan masuk tiap 4 detik
+                radioSyncInterval = setInterval(checkRadioMessages, 4000);
+            } catch (err) {
+                console.warn("Mikrofon ditolak:", err);
+                document.getElementById('btnPTT').innerText = "❌ MIC DITOLAK";
+                document.getElementById('btnPTT').style.background = "#7f8c8d";
+            }
+        }
+
+        function startPTT(e) {
+            if(e && e.cancelable) e.preventDefault(); 
+            if (!mediaRecorder || mediaRecorder.state === 'recording') return;
+            isPttActive = true; audioChunks = [];
+            mediaRecorder.start();
+            document.getElementById('btnPTT').innerText = "🔴 MEREKAM...";
+            document.getElementById('btnPTT').classList.add('recording');
+        }
+
+        function stopPTT(e) {
+            if(e && e.cancelable) e.preventDefault();
+            if (!mediaRecorder || mediaRecorder.state !== 'recording' || !isPttActive) return;
+            isPttActive = false;
+            mediaRecorder.stop();
+            document.getElementById('btnPTT').innerText = "⏳ MENGIRIM...";
+            document.getElementById('btnPTT').classList.remove('recording');
+        }
+
+        function uploadVoice() {
+            if (audioChunks.length === 0) {
+                document.getElementById('btnPTT').innerText = "🎤 TAHAN UNTUK BICARA"; return;
+            }
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            const formData = new FormData();
+            formData.append('action', 'upload');
+            formData.append('room', ROOM_ID);
+            formData.append('user', CAPTAIN_NAME);
+            formData.append('audio', audioBlob, 'voice.webm');
+
+            fetch('api_radio.php', { method: 'POST', body: formData })
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('btnPTT').innerText = "🎤 TAHAN UNTUK BICARA";
+                    if(data.status === 'success') addRadioMessage(CAPTAIN_NAME, 'temp/radio/' + data.filename, true);
+                }).catch(() => document.getElementById('btnPTT').innerText = "🎤 TAHAN UNTUK BICARA");
+        }
+
+        function checkRadioMessages() {
+            fetch(`api_radio.php?action=sync&room=${ROOM_ID}&last_sync=${lastRadioSync}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        if (data.server_time) lastRadioSync = data.server_time;
+                        if (data.messages && data.messages.length > 0) {
+                            data.messages.forEach(msg => {
+                                if (msg.user !== CAPTAIN_NAME) {
+                                    addRadioMessage(msg.user, msg.file_url, false);
+                                    playPingSound();
+                                }
+                            });
+                        }
+                    }
+                }).catch(e => console.log("Radio sync fail"));
+        }
+
+        function addRadioMessage(user, fileUrl, isMe) {
+            const feed = document.getElementById('radioFeed');
+            const item = document.createElement('div');
+            item.className = 'radio-item' + (isMe ? '' : ' new');
+            
+            const d = new Date();
+            const timeStr = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+            const initials = user.substring(0,2).toUpperCase();
+            const bgColor = isMe ? '#e67e22' : '#3498db';
+
+            item.innerHTML = `
+                <div class="radio-avatar" style="background:${bgColor}">${initials}</div>
+                <div class="radio-info">
+                    <span class="radio-user">${isMe ? 'Saya' : user}</span>
+                    <span class="radio-time">${timeStr}</span>
+                </div>
+                <div style="color: ${isMe ? '#bdc3c7' : '#2ecc71'}; font-size: 16px;">▶️</div>
+            `;
+            
+            item.onclick = function() {
+                this.classList.remove('new'); 
+                const audio = new Audio(fileUrl);
+                audio.play();
+            };
+
+            // Masukkan di PALING ATAS (Descending)
+            feed.prepend(item);
+            
+            // Batasi memori UI (hapus yang paling lama di bawah jika > 5 pesan)
+            if (feed.children.length > 5) feed.removeChild(feed.lastChild);
+        }
+
+        // Sintesis suara "Ping!" tanpa MP3 biar hemat bandwidth
+        function playPingSound() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator(), gain = ctx.createGain();
+                osc.connect(gain); gain.connect(ctx.destination);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0, ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(1, ctx.currentTime + 0.05);
+                gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.5);
+                osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.5);
+            } catch(e) {}
+        }
+        
+        // --- ENGINE SMART VOICE COACH (v7.0) ---
+        function announceStats(distance, avgSpeed) {
+            if ('speechSynthesis' in window) {
+                // Matikan dulu kalau robotnya masih ngomong biar nggak numpuk
+                window.speechSynthesis.cancel(); 
+                
+                const text = `Informasi Kayooh. Jarak tempuh: ${Math.floor(distance)} kilometer. Kecepatan rata rata: ${avgSpeed.toFixed(1)} kilometer per jam. Tetap semangat, Kapten!`;
+                
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'id-ID'; // Wajib logat Indonesia
+                utterance.rate = 0.95; // Sedikit lebih lambat biar jelas saat kena angin
+                utterance.pitch = 1.0; 
+                
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+        
         // 6. FUNGSI RADAR DUA ARAH
         function syncPeletonRadar(lat, lng, spd) {
             const params = new URLSearchParams({ lat, lng, speed: spd, user: CAPTAIN_NAME, room: ROOM_ID, action: 'sync' });
@@ -385,6 +565,8 @@ $captain_name = $settings['captain_name'] ?? 'Kapten';
             isRecording = false;
             clearInterval(timerInterval);
             if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+            if (radioSyncInterval) clearInterval(radioSyncInterval);
+            if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
             releaseWakeLock();
 
             if (!isAutoPaused && currentStartTimeMs > 0) accumulatedTimeMs += (Date.now() - currentStartTimeMs);

@@ -151,6 +151,13 @@ try {
             });
         }
 
+        // --- VARIABEL GLOBAL & SMART VOICE COACH ---
+        let isRecording = false, isAutoPaused = false, watchId = null, timerInterval = null;
+        let totalDistance = 0, maxSpeed = 0, lastPos = null;
+        let accumulatedTimeMs = 0, currentStartTimeMs = 0, secondsElapsed = 0;
+        let tempLog = [], lastTempFetch = 0, wakeLock = null;
+        let nextVoiceMilestone = 5; // Target bacot asisten pertama
+
         // 3. FITUR SAKTI: WAKELOCK, SUHU & BLACKBOX
         async function requestWakeLock() {
             try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {}
@@ -187,7 +194,7 @@ try {
             let state = localStorage.getItem('kayooh_single_state');
             if (state && localStorage.getItem('active_session')?.includes('record_single')) {
                 let data = JSON.parse(state);
-                totalDistance = data.totalDistance || 0; maxSpeed = data.maxSpeed || 0;
+                totalDistance = data.totalDistance || 0; maxSpeed = data.maxSpeed || 0; nextVoiceMilestone = Math.floor(totalDistance / 5) * 5 + 5;
                 accumulatedTimeMs = data.accumulatedTimeMs || 0; isAutoPaused = data.isAutoPaused || false;
                 tempLog = data.tempLog || []; lastTempFetch = data.lastTempFetch || 0; lastPos = data.lastPos || null;
 
@@ -219,7 +226,7 @@ try {
             clearIndexedDB(); clearBlackBox();
             isRecording = true; isAutoPaused = false;
             currentStartTimeMs = Date.now(); accumulatedTimeMs = 0;
-            totalDistance = 0; maxSpeed = 0; pathLine.setLatLngs([]); tempLog = []; lastPos = null;
+            totalDistance = 0; maxSpeed = 0; nextVoiceMilestone = 5; pathLine.setLatLngs([]); tempLog = []; lastPos = null;
             
             document.getElementById('btnStart').style.display = 'none';
             document.getElementById('btnStop').style.display = 'block';
@@ -279,8 +286,14 @@ try {
                             saveToIndexedDB({ lat: latitude, lng: longitude, time: Date.now() });
                             pathLine.addLatLng(currentPos); captainMarker.setLatLng(currentPos); map.panTo(currentPos);
                             
-                            // BUG "JANGKAR TERSERET" DIBASMI DI SINI!
                             lastPos = currentPos; 
+
+                            // --- TRIGGER VOICE COACH TIAP KELIPATAN MILESTONE ---
+                            if (totalDistance >= nextVoiceMilestone) {
+                                let currentAvgSpeed = secondsElapsed > 0 ? (totalDistance / (secondsElapsed / 3600)) : 0;
+                                announceStats(totalDistance, currentAvgSpeed);
+                                nextVoiceMilestone += 5; // Set target ngoceh berikutnya
+                            }
                         }
                     } else {
                         saveToIndexedDB({ lat: latitude, lng: longitude, time: Date.now() });
@@ -293,6 +306,19 @@ try {
                 saveBlackBox(); 
                 fetch(`radar_sync.php?lat=${latitude}&lng=${longitude}&speed=${currentSpeed}&user=<?= $settings['captain_name'] ?? 'Kapten' ?>&room=<?= $room_id ?>`); 
             }, (err) => console.error(err), { enableHighAccuracy: true });
+        }
+
+        // --- ENGINE SMART VOICE COACH (v7.0) ---
+        function announceStats(distance, avgSpeed) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel(); 
+                const text = `Informasi Kayooh. Jarak tempuh: ${Math.floor(distance)} kilometer. Kecepatan rata rata: ${avgSpeed.toFixed(1)} kilometer per jam. Tetap semangat, Kapten!`;
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'id-ID';
+                utterance.rate = 0.95;
+                utterance.pitch = 1.0; 
+                window.speechSynthesis.speak(utterance);
+            }
         }
 
         // 5. PENUTUP & CHUNKING (Tanpa Prompt, Langsung Sikat!)

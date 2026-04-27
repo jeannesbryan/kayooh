@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kayooh v5.0 - Ultimate Self-Hosted GPS Cycling Tracker</title>
+    <title>Kayooh - Ultimate Self-Hosted GPS Cycling Tracker</title>
     <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16x16.png">
@@ -152,11 +152,13 @@
     <h2>Filosofi & Nilai Jual</h2>
     <p><b>Kayooh</b> adalah aplikasi pelacak gowes mandiri (Self-Hosted) kelas Enterprise yang memberikan kedaulatan penuh atas data pribadi Anda. Dengan arsitektur hybrid terbaru yang memisahkan beban *database* lokal dan satelit *Object Storage*, Kayooh menjamin kinerja secepat kilat meski menyimpan puluhan ribu rekor gowes Anda seumur hidup.</p>
 
-    <h2>Fitur Unggulan v5.0</h2>
+    <h2>Fitur Unggulan</h2>
     <div class="pro-con-grid">
         <div class="box-list pro-box">
             <h4>✅ Kelebihan Utama & Fitur Super</h4>
             <ul>
+                <li><b>🎙️ Radio Peleton (Walkie Talkie)</b>: Komunikasi suara antar peserta murni via <i>browser</i> dengan Native Web API. Terdapat <i>Auto-Sweeper</i> yang otomatis membersihkan <i>cache</i> audio di server agar memori selalu lega.</li>
+                <li><b>🗣️ Smart Voice Coach</b>: Asisten suara pintar berbahasa Indonesia yang akan membacakan statistik jarak dan kecepatan setiap kelipatan 5 KM secara otomatis untuk menjaga fokus mata ke aspal.</li>
                 <li><b>Cloudflare R2 Integration</b>: <i>Database</i> SQLite Anda dijamin bebas bengkak! Seluruh titik kordinat masif kini dititipkan dengan aman ke satelit Cloudflare R2 secara instan. Server PHP Anda jadi super ringan.</li>
                 <li><b>Universal Route Parser</b>: Peta pintar yang mampu menerjemahkan segala jenis data secara otomatis: Sandi Strava jadul (Encoded Polyline), JSON Lokal, hingga JSON dari Cloudflare R2.</li>
                 <li><b>IndexedDB Black Box</b>: Penyimpanan darurat (Black Box) kini ditenagai oleh mesin <i>IndexedDB</i>. Tahan banting dari resiko <i>browser crash</i> atau tertutup tak sengaja, data gowes Anda tak akan hilang.</li>
@@ -277,6 +279,12 @@
             <li>Sistem akan memunculkan <i>prompt</i> otomatis. Konfirmasi nama-nama peserta untuk disimpan permanen ke riwayat Kapten. Kayooh akan langsung memecah kordinat (Chunking) dan mengirimkannya ke satelit R2!</li>
             <li><b>Bonus Untuk Guest:</b> Sesaat setelah Kapten menekan tombol selesai, di layar Guest akan otomatis memunculkan tombol <b>"📥 AMANKAN GPX SAYA"</b>. Guest dapat mengunduh file GPX rute mandirinya yang sudah tertanam Sandi Rahasia Peleton. Saat GPX ini diunggah ke <i>server</i> Kayooh miliknya sendiri, riwayat Peleton akan otomatis sinkron!</li>
         </ol>
+        <h3>Langkah 4: Komunikasi Radio Peleton 🎙️</h3>
+        <ol>
+            <li>Di layar perekaman Peleton, perhatikan panel radio di pojok kanan bawah.</li>
+            <li>Tekan dan tahan tombol merah <b>"🎤 TAHAN UNTUK BICARA"</b>, ucapkan pesan Anda, lalu lepaskan.</li>
+            <li>Sistem akan mengirimkan <i>voice note</i> ke seluruh anggota Peleton. Perangkat mereka akan membunyikan notifikasi "Ping!" dan pesan bisa diputar manual agar tidak mengagetkan saat gowes.</li>
+        </ol>
     </div>
 
     <h2>Panduan Lengkap API Strava</h2>
@@ -311,6 +319,55 @@
             <li>Masukkan <i>Client ID</i> dan <i>Client Secret</i> tadi ke form, lalu klik <b>SIMPAN PENGATURAN</b>.</li>
             <li>Klik tombol <b>🔑 Dapatkan Token Sakti</b>. Berikan izin akses pada halaman Strava yang muncul.</li>
             <li>Setelah kembali ke Kayooh, klik <b>SINKRONISASI SEKARANG</b> untuk mulai mengimpor data sejarah gowes Anda.</li>
+        </ol>
+    </div>
+
+    <h2>Panduan Setup Cloudflare R2 (Penyimpanan Media)</h2>
+    <div class="pro-box" style="margin-bottom: 40px;">
+        <p>Untuk menyimpan foto <i>share</i> peta dan sinkronisasi rute tanpa membebani hardisk VPS/Hosting Anda, Kayooh mendukung integrasi penuh dengan Cloudflare R2 (Gratis 10GB/bulan).</p>
+
+        <h3>Langkah 1: Membuat Bucket R2</h3>
+        <ol>
+            <li>Login ke dashboard <a href="https://dash.cloudflare.com" target="_blank" style="color: var(--primary-color);">Cloudflare</a>.</li>
+            <li>Pilih menu <b>R2</b> di sidebar kiri, lalu klik <b>Create bucket</b>.</li>
+            <li>Beri nama bucket Anda (misal: <code>kayooh-media</code>), lalu klik <b>Create bucket</b>.</li>
+            <li><i>(Opsional)</i> Di menu Settings bucket, aktifkan <b>Public Access (Custom Domains)</b> agar gambar bisa diakses publik.</li>
+        </ol>
+
+        <h3>Langkah 2: Mengatur CORS Policy (SANGAT PENTING!) ⚠️</h3>
+        <ol>
+            <li>Masuk ke dalam bucket yang baru dibuat, pilih tab <b>Settings</b>.</li>
+            <li>Scroll ke bawah ke bagian <b>CORS Policy</b>, lalu klik <b>Add CORS policy</b> (atau Edit).</li>
+            <li>Hapus teks yang ada, lalu paste kode JSON sakti ini:</li>
+        </ol>
+        
+        <pre style="background: #1e272e; color: #00d2d3; padding: 15px; border-radius: 8px; overflow-x: auto; font-size: 13px; line-height: 1.4;">[
+  {
+    "AllowedOrigins": [
+      "http://localhost*",
+      "https://domain-kayooh-anda.com"
+    ],
+    "AllowedMethods": [
+      "GET",
+      "PUT",
+      "POST",
+      "DELETE",
+      "HEAD"
+    ],
+    "AllowedHeaders": [
+      "*"
+    ]
+  }
+]</pre>
+        <p style="font-size: 12px; color: #7f8c8d; margin-top: -10px;"><i>*Catatan: Ganti <code>https://domain-kayooh-anda.com</code> dengan domain web Kayooh Anda (tanpa garis miring di belakang).</i></p>
+
+        <h3>Langkah 3: Mendapatkan Kredensial API</h3>
+        <ol>
+            <li>Kembali ke menu utama R2, klik <b>Manage R2 API Tokens</b> di sebelah kanan atas.</li>
+            <li>Klik <b>Create API token</b>. Beri nama (misal: "Kayooh Token").</li>
+            <li>Pada bagian Permissions, pilih <b>Object Read & Write</b>. Klik Create.</li>
+            <li>Catat <b>Access Key ID</b>, <b>Secret Access Key</b>, dan URL <b>Endpoint S3 API</b>.</li>
+            <li>Masukkan ketiga data tersebut ke menu <b>Pengaturan Kayooh</b> di Dashboard Anda. Selesai!</li>
         </ol>
     </div>
 
