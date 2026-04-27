@@ -49,9 +49,19 @@ try {
         #uploadOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 9999; display: none; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
         .progress-bar { width: 80%; background: #444; height: 10px; border-radius: 5px; margin-top: 20px; overflow: hidden; }
         #progressFill { width: 0%; height: 100%; background: var(--primary); transition: width 0.3s; }
+    
+        /* --- STEALTH MODE v8.0 --- */
+        #stealthOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: #000000; z-index: 99999; display: none; flex-direction: column; justify-content: center; align-items: center; color: #333; font-family: sans-serif; user-select: none; -webkit-user-select: none; }
+        .btn-stealth { background: #2c3e50; color: white; border: none; padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
     </style>
 </head>
 <body>
+
+    <div id="stealthOverlay" ondblclick="disableStealth()">
+        <div style="font-size: 60px; filter: grayscale(1); opacity: 0.1; margin-bottom: 20px;">🚲</div>
+        <div style="font-size: 10px; letter-spacing: 2px; opacity: 0.3;">STEALTH MODE ACTIVE</div>
+        <div style="font-size: 9px; margin-top: 10px; opacity: 0.2;">Ketuk 2x untuk membuka</div>
+    </div>
 
     <div id="uploadOverlay">
         <h2 id="statusTitle">🚀 MENGIRIM DATA...</h2>
@@ -95,6 +105,7 @@ try {
             </div>
         </div>
         <button class="btn btn-stop" id="btnStart" onclick="startRide()" style="background: #2ecc71;">▶️ MULAI GOWES</button>
+        <button id="btnStealth" class="btn-stealth" onclick="enableStealth()" style="display:none;">🔒 STEALTH</button>
         <button class="btn btn-stop" id="btnStop" onclick="finishRide()" style="display: none;">⬜ SELESAI GOWES</button>
     </div>
 
@@ -126,7 +137,14 @@ try {
         // 3. MAP & VARIABEL GOWES
         // Fallback default ke Jogja (biar nggak ke Samudra Atlantik)
         const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([-7.801, 110.373], 15);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        // --- AUTO-NIGHT MODE MAP ---
+        const currentHour = new Date().getHours();
+        const isNight = (currentHour >= 18 || currentHour < 6); // Jam 6 sore sampai 6 pagi
+        const tileUrl = isNight 
+            ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' 
+            : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+        
+        L.tileLayer(tileUrl, { maxZoom: 19 }).addTo(map);
 
         const pathLine = L.polyline([], { color: '#e67e22', weight: 5 }).addTo(map); 
         const captainMarker = L.circleMarker([-7.801, 110.373], { radius: 8, color: '#fff', fillOpacity: 1, fillColor: '#e67e22', zIndexOffset: 1000 }).addTo(map);
@@ -156,7 +174,8 @@ try {
         let totalDistance = 0, maxSpeed = 0, lastPos = null;
         let accumulatedTimeMs = 0, currentStartTimeMs = 0, secondsElapsed = 0;
         let tempLog = [], lastTempFetch = 0, wakeLock = null;
-        let nextVoiceMilestone = 5; // Target bacot asisten pertama
+        let nextVoiceMilestone = 5; 
+        let nextHydrationMilestone = 20; // Target pengingat minum pertama (20 menit)
 
         // 3. FITUR SAKTI: WAKELOCK, SUHU & BLACKBOX
         async function requestWakeLock() {
@@ -195,6 +214,8 @@ try {
             if (state && localStorage.getItem('active_session')?.includes('record_single')) {
                 let data = JSON.parse(state);
                 totalDistance = data.totalDistance || 0; maxSpeed = data.maxSpeed || 0; nextVoiceMilestone = Math.floor(totalDistance / 5) * 5 + 5;
+                // Pulihkan ingatan waktu minum
+                nextHydrationMilestone = Math.floor((secondsElapsed / 60) / 20) * 20 + 20;
                 accumulatedTimeMs = data.accumulatedTimeMs || 0; isAutoPaused = data.isAutoPaused || false;
                 tempLog = data.tempLog || []; lastTempFetch = data.lastTempFetch || 0; lastPos = data.lastPos || null;
 
@@ -211,6 +232,7 @@ try {
 
                 document.getElementById('btnStart').style.display = 'none';
                 document.getElementById('btnStop').style.display = 'block';
+                document.getElementById('btnStealth').style.display = 'flex';
                 document.getElementById('gps-info').innerHTML = '<span style="color:#f39c12; font-weight:bold;">⚠️ SESI DIPULIHKAN DARI CRASH</span>';
                 
                 isRecording = true;
@@ -226,7 +248,7 @@ try {
             clearIndexedDB(); clearBlackBox();
             isRecording = true; isAutoPaused = false;
             currentStartTimeMs = Date.now(); accumulatedTimeMs = 0;
-            totalDistance = 0; maxSpeed = 0; nextVoiceMilestone = 5; pathLine.setLatLngs([]); tempLog = []; lastPos = null;
+            totalDistance = 0; maxSpeed = 0; nextVoiceMilestone = 5; nextHydrationMilestone = 20; pathLine.setLatLngs([]); tempLog = []; lastPos = null;
             
             document.getElementById('btnStart').style.display = 'none';
             document.getElementById('btnStop').style.display = 'block';
@@ -248,6 +270,17 @@ try {
                     const m = String(Math.floor((secondsElapsed % 3600) / 60)).padStart(2, '0');
                     const s = String(secondsElapsed % 60).padStart(2, '0');
                     document.getElementById('timeVal').innerText = `${h}:${m}:${s}`;
+
+                    // --- HYDRATION COACH (Setiap 20 Menit Moving Time) ---
+                    if (secondsElapsed >= (nextHydrationMilestone * 60)) {
+                        if ('speechSynthesis' in window) {
+                            const utterance = new SpeechSynthesisUtterance(`Kapten, waktu gowes sudah ${nextHydrationMilestone} menit. Jangan lupa minum air agar tetap hidrasi!`);
+                            utterance.lang = 'id-ID';
+                            utterance.rate = 0.95;
+                            window.speechSynthesis.speak(utterance);
+                        }
+                        nextHydrationMilestone += 20; // Set pengingat berikutnya
+                    }
                 }
             }, 1000);
 
@@ -379,6 +412,19 @@ try {
         function copyTrackingLink() {
             const url = `https://${window.location.hostname}${window.location.pathname.replace('record_single.php', 'radar.php')}?room=<?= $room_id ?>`;
             navigator.clipboard.writeText(url).then(() => alert("Link pelacakan berhasil disalin! Kirim ke grup!"));
+        }
+
+        // --- ENGINE STEALTH MODE v8.0 ---
+        function enableStealth() {
+            document.getElementById('stealthOverlay').style.display = 'flex';
+            // Pastikan volume notifikasi tetap aman agar Ping! masih terdengar
+            console.log("Stealth Mode Aktif: Menjaga baterai & Voice Coach tetap melek.");
+        }
+
+        function disableStealth() {
+            document.getElementById('stealthOverlay').style.display = 'none';
+            // Beri feedback sedikit getaran jika didukung HP
+            if (navigator.vibrate) navigator.vibrate(50);
         }
     </script>
 </body>

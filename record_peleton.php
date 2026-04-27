@@ -83,9 +83,19 @@ $captain_name = $settings['captain_name'] ?? 'Kapten';
         .btn-ptt.recording { background: #c0392b; animation: pulse-red 1s infinite; }
         @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(192, 57, 43, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(192, 57, 43, 0); } 100% { box-shadow: 0 0 0 0 rgba(192, 57, 43, 0); } }
         @keyframes pulse-green { 0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7); } 70% { box-shadow: 0 0 0 5px rgba(46, 204, 113, 0); } 100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); } }
+
+        /* --- STEALTH MODE v8.0 --- */
+        #stealthOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: #000000; z-index: 99999; display: none; flex-direction: column; justify-content: center; align-items: center; color: #333; font-family: sans-serif; user-select: none; -webkit-user-select: none; }
+        .btn-stealth { background: #2c3e50; color: white; border: none; padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
     </style>
 </head>
 <body>
+
+    <div id="stealthOverlay" ondblclick="disableStealth()">
+        <div style="font-size: 60px; filter: grayscale(1); opacity: 0.1; margin-bottom: 20px;">🚲</div>
+        <div style="font-size: 10px; letter-spacing: 2px; opacity: 0.3;">STEALTH MODE ACTIVE</div>
+        <div style="font-size: 9px; margin-top: 10px; opacity: 0.2;">Ketuk 2x untuk membuka</div>
+    </div>
 
     <div id="uploadOverlay">
         <h2 id="statusTitle">🚀 MENGIRIM DATA PELETON...</h2>
@@ -141,6 +151,7 @@ $captain_name = $settings['captain_name'] ?? 'Kapten';
             </div>
         </div>
         <button class="btn btn-stop" id="btnStart" onclick="startRide()" style="background: #2ecc71;">▶️ MULAI GOWES PELETON</button>
+        <button id="btnStealth" class="btn-stealth" onclick="enableStealth()" style="display:none;">🔒 STEALTH</button>
         <button class="btn btn-stop" id="btnStop" onclick="finishRide()" style="display: none;">🏁 SELESAI GOWES PELETON</button>
     </div>
 
@@ -181,7 +192,14 @@ $captain_name = $settings['captain_name'] ?? 'Kapten';
         // 3. MAP & VARIABEL GOWES
         // Set fallback ke daratan (bukan laut)
         const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([-7.801, 110.373], 15);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        // --- AUTO-NIGHT MODE MAP ---
+        const currentHour = new Date().getHours();
+        const isNight = (currentHour >= 18 || currentHour < 6); // Jam 6 sore sampai 6 pagi
+        const tileUrl = isNight 
+            ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' 
+            : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+        
+        L.tileLayer(tileUrl, { maxZoom: 19 }).addTo(map);
 
         const pathLine = L.polyline([], { color: '#e74c3c', weight: 5 }).addTo(map); 
         // Set posisi awal marker ke daratan juga
@@ -211,7 +229,8 @@ $captain_name = $settings['captain_name'] ?? 'Kapten';
         let totalDistance = 0, maxSpeed = 0, lastPos = null;
         let accumulatedTimeMs = 0, currentStartTimeMs = 0, secondsElapsed = 0;
         // --- VARIABEL SMART VOICE COACH ---
-        let nextVoiceMilestone = 5; // Target bacot pertama di 5 KM
+        let nextVoiceMilestone = 5; 
+        let nextHydrationMilestone = 20; // Target pengingat minum pertama (20 menit)
 
         let tempLog = [], lastTempFetch = 0, wakeLock = null;
 
@@ -261,6 +280,8 @@ $captain_name = $settings['captain_name'] ?? 'Kapten';
                 totalDistance = data.totalDistance || 0; maxSpeed = data.maxSpeed || 0;
                 // Kembalikan ingatan Voice Coach agar tahu kapan harus ngoceh lagi
                 nextVoiceMilestone = Math.floor(totalDistance / 5) * 5 + 5;
+                // Pulihkan ingatan waktu minum
+                nextHydrationMilestone = Math.floor((secondsElapsed / 60) / 20) * 20 + 20;
                 accumulatedTimeMs = data.accumulatedTimeMs || 0; isAutoPaused = data.isAutoPaused || false;
                 tempLog = data.tempLog || []; lastTempFetch = data.lastTempFetch || 0; lastPos = data.lastPos || null;
 
@@ -277,6 +298,7 @@ $captain_name = $settings['captain_name'] ?? 'Kapten';
 
                 document.getElementById('btnStart').style.display = 'none';
                 document.getElementById('btnStop').style.display = 'block';
+                document.getElementById('btnStealth').style.display = 'flex';
                 document.getElementById('gps-info').innerHTML = '<span style="color:#f39c12; font-weight:bold;">⚠️ SESI DIPULIHKAN DARI CRASH</span>';
                 
                 isRecording = true;
@@ -292,7 +314,7 @@ $captain_name = $settings['captain_name'] ?? 'Kapten';
             clearIndexedDB(); clearBlackBox();
             isRecording = true; isAutoPaused = false;
             currentStartTimeMs = Date.now(); accumulatedTimeMs = 0;
-            totalDistance = 0; maxSpeed = 0; nextVoiceMilestone = 5; pathLine.setLatLngs([]); tempLog = []; lastPos = null;
+            totalDistance = 0; maxSpeed = 0; nextVoiceMilestone = 5; nextHydrationMilestone = 20; pathLine.setLatLngs([]); tempLog = []; lastPos = null;
             
             document.getElementById('btnStart').style.display = 'none';
             document.getElementById('btnStop').style.display = 'block';
@@ -325,6 +347,17 @@ $captain_name = $settings['captain_name'] ?? 'Kapten';
                     const m = String(Math.floor((secondsElapsed % 3600) / 60)).padStart(2, '0');
                     const s = String(secondsElapsed % 60).padStart(2, '0');
                     document.getElementById('timeVal').innerText = `${h}:${m}:${s}`;
+
+                    // --- HYDRATION COACH (Setiap 20 Menit Moving Time) ---
+                    if (secondsElapsed >= (nextHydrationMilestone * 60)) {
+                        if ('speechSynthesis' in window) {
+                            const utterance = new SpeechSynthesisUtterance(`Kapten, waktu gowes sudah ${nextHydrationMilestone} menit. Jangan lupa minum air agar tetap hidrasi!`);
+                            utterance.lang = 'id-ID';
+                            utterance.rate = 0.95;
+                            window.speechSynthesis.speak(utterance);
+                        }
+                        nextHydrationMilestone += 20; // Set pengingat berikutnya
+                    }
                 }
             }, 1000);
 
@@ -633,6 +666,19 @@ $captain_name = $settings['captain_name'] ?? 'Kapten';
 
         function copyRoomCode() {
             navigator.clipboard.writeText(ROOM_ID).then(() => alert(`🔑 Room Code (${ROOM_ID}) berhasil disalin!`));
+        }
+
+        // --- ENGINE STEALTH MODE v8.0 ---
+        function enableStealth() {
+            document.getElementById('stealthOverlay').style.display = 'flex';
+            // Pastikan volume notifikasi tetap aman agar Ping! masih terdengar
+            console.log("Stealth Mode Aktif: Menjaga baterai & Voice Coach tetap melek.");
+        }
+
+        function disableStealth() {
+            document.getElementById('stealthOverlay').style.display = 'none';
+            // Beri feedback sedikit getaran jika didukung HP
+            if (navigator.vibrate) navigator.vibrate(50);
         }
     </script>
 </body>
