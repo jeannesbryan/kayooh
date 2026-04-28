@@ -70,7 +70,7 @@ $captain_name = $settings['captain_name'] ?? 'Kapten';
         .peleton-label { background: rgba(0,0,0,0.7); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; white-space: nowrap; }
 
         /* --- RADIO PELETON UI (v7.0) --- */
-        .radio-panel { position: fixed; bottom: 180px; right: 15px; width: 200px; background: rgba(44, 62, 80, 0.85); border-radius: 12px; padding: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); z-index: 1000; border: 1px solid rgba(255,255,255,0.1); display: none; }
+        .radio-panel { position: fixed; bottom: 320px; right: 15px; width: 200px; background: rgba(44, 62, 80, 0.85); border-radius: 12px; padding: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); z-index: 1050; border: 1px solid rgba(255,255,255,0.1); display: none; }
         .radio-header { display: flex; justify-content: space-between; align-items: center; font-size: 11px; font-weight: bold; color: #f39c12; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; }
         .radio-feed { max-height: 120px; overflow-y: auto; margin-bottom: 10px; display: flex; flex-direction: column; gap: 5px; }
         .radio-item { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.05); border-radius: 8px; padding: 5px 8px; cursor: pointer; pointer-events: auto; }
@@ -86,7 +86,9 @@ $captain_name = $settings['captain_name'] ?? 'Kapten';
 
         /* --- STEALTH MODE v8.0 --- */
         #stealthOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: #000000; z-index: 99999; display: none; flex-direction: column; justify-content: center; align-items: center; color: #333; font-family: sans-serif; user-select: none; -webkit-user-select: none; }
-        .btn-stealth { background: #2c3e50; color: white; border: none; padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        /* --- STEALTH MODE & JUKEBOX BUTTONS --- */
+        .btn-stealth { background: #2c3e50; color: white; border: none; padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); pointer-events: auto; flex: 1; }
+        .action-row { display: flex; gap: 10px; margin-bottom: 10px; width: 100%; }
     </style>
 </head>
 <body>
@@ -150,9 +152,16 @@ $captain_name = $settings['captain_name'] ?? 'Kapten';
                 <div class="val" id="timeVal">00:00:00</div>
             </div>
         </div>
+        <div class="action-row">
+            <button id="btnStealth" class="btn-stealth" onclick="enableStealth()" style="display:none;">🔒 STEALTH</button>
+            <button id="btnMusic" class="btn-stealth" onclick="document.getElementById('musicInput').click()" style="background:#8e44ad;">🎵 MUSIK</button>
+            <button id="btnSkip" class="btn-stealth" onclick="audioPlayer.currentTime = audioPlayer.duration;" style="background:#d35400;">⏭️ SKIP</button>
+        </div>
+
         <button class="btn btn-stop" id="btnStart" onclick="startRide()" style="background: #2ecc71;">▶️ MULAI GOWES PELETON</button>
-        <button id="btnStealth" class="btn-stealth" onclick="enableStealth()" style="display:none;">🔒 STEALTH</button>
         <button class="btn btn-stop" id="btnStop" onclick="finishRide()" style="display: none;">🏁 SELESAI GOWES PELETON</button>
+        
+        <input type="file" id="musicInput" multiple accept="audio/*" style="display: none;" onchange="loadAndPlayMusic(event)">
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -299,6 +308,7 @@ $captain_name = $settings['captain_name'] ?? 'Kapten';
                 document.getElementById('btnStart').style.display = 'none';
                 document.getElementById('btnStop').style.display = 'block';
                 document.getElementById('btnStealth').style.display = 'flex';
+                document.getElementById('btnMusic').style.display = 'flex';
                 document.getElementById('gps-info').innerHTML = '<span style="color:#f39c12; font-weight:bold;">⚠️ SESI DIPULIHKAN DARI CRASH</span>';
                 
                 isRecording = true;
@@ -318,6 +328,10 @@ $captain_name = $settings['captain_name'] ?? 'Kapten';
             
             document.getElementById('btnStart').style.display = 'none';
             document.getElementById('btnStop').style.display = 'block';
+            
+            // --- PEMUNCULAN TOMBOL V8.0 & V9.0 ---
+            document.getElementById('btnStealth').style.display = 'flex';
+
             // Tampilkan panel radio & minta izin Mikrofon
             document.getElementById('radioPanel').style.display = 'block';
             initRadio();
@@ -354,9 +368,16 @@ $captain_name = $settings['captain_name'] ?? 'Kapten';
                             const utterance = new SpeechSynthesisUtterance(`Kapten, waktu gowes sudah ${nextHydrationMilestone} menit. Jangan lupa minum air agar tetap hidrasi!`);
                             utterance.lang = 'id-ID';
                             utterance.rate = 0.95;
+                            
+                            // Efek Ducking (Kecilkan Musik)
+                            if (!audioPlayer.paused) audioPlayer.volume = 0.15;
+                            utterance.onend = function() {
+                                audioPlayer.volume = 1.0;
+                            };
+
                             window.speechSynthesis.speak(utterance);
                         }
-                        nextHydrationMilestone += 20; // Set pengingat berikutnya
+                        nextHydrationMilestone += 20;
                     }
                 }
             }, 1000);
@@ -419,17 +440,33 @@ $captain_name = $settings['captain_name'] ?? 'Kapten';
             }, (err) => console.error(err), { enableHighAccuracy: true });
         }
 
-        // --- ENGINE RADIO PELETON (v7.0) ---
+        // --- ENGINE RADIO PELETON (v7.0 + v9.2 Privacy Mic) ---
         async function initRadio() {
+            // HANYA jalankan radar penerima pesan, JANGAN aktifkan mic di sini!
+            radioSyncInterval = setInterval(checkRadioMessages, 4000);
+        }
+
+        async function startPTT(e) {
+            if(e && e.cancelable) e.preventDefault(); 
+            if (isPttActive) return;
+
             try {
+                // Tarik akses mic SECARA DINAMIS hanya saat tombol ditahan
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
                 
-                mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
-                mediaRecorder.onstop = uploadVoice;
-                
-                // Mulai ping cek pesan masuk tiap 4 detik
-                radioSyncInterval = setInterval(checkRadioMessages, 4000);
+                mediaRecorder.ondataavailable = event => { if (event.data.size > 0) audioChunks.push(event.data); };
+                mediaRecorder.onstop = () => {
+                    uploadVoice();
+                    // MATIKAN TOTAL hardware mic agar indikator "In Use" di browser hilang!
+                    stream.getTracks().forEach(track => track.stop());
+                };
+
+                isPttActive = true;
+                mediaRecorder.start();
+                document.getElementById('btnPTT').innerText = "🔴 MEREKAM...";
+                document.getElementById('btnPTT').classList.add('recording');
             } catch (err) {
                 console.warn("Mikrofon ditolak:", err);
                 document.getElementById('btnPTT').innerText = "❌ MIC DITOLAK";
@@ -437,20 +474,11 @@ $captain_name = $settings['captain_name'] ?? 'Kapten';
             }
         }
 
-        function startPTT(e) {
-            if(e && e.cancelable) e.preventDefault(); 
-            if (!mediaRecorder || mediaRecorder.state === 'recording') return;
-            isPttActive = true; audioChunks = [];
-            mediaRecorder.start();
-            document.getElementById('btnPTT').innerText = "🔴 MEREKAM...";
-            document.getElementById('btnPTT').classList.add('recording');
-        }
-
         function stopPTT(e) {
             if(e && e.cancelable) e.preventDefault();
-            if (!mediaRecorder || mediaRecorder.state !== 'recording' || !isPttActive) return;
+            if (!isPttActive || !mediaRecorder || mediaRecorder.state !== 'recording') return;
             isPttActive = false;
-            mediaRecorder.stop();
+            mediaRecorder.stop(); // Ini akan otomatis memicu mediaRecorder.onstop di atas
             document.getElementById('btnPTT').innerText = "⏳ MENGIRIM...";
             document.getElementById('btnPTT').classList.remove('recording');
         }
@@ -540,19 +568,22 @@ $captain_name = $settings['captain_name'] ?? 'Kapten';
             } catch(e) {}
         }
         
-        // --- ENGINE SMART VOICE COACH (v7.0) ---
+        // --- ENGINE SMART VOICE COACH (v7.0 + v9.0 Ducking) ---
         function announceStats(distance, avgSpeed) {
             if ('speechSynthesis' in window) {
-                // Matikan dulu kalau robotnya masih ngomong biar nggak numpuk
                 window.speechSynthesis.cancel(); 
-                
                 const text = `Informasi Kayooh. Jarak tempuh: ${Math.floor(distance)} kilometer. Kecepatan rata rata: ${avgSpeed.toFixed(1)} kilometer per jam. Tetap semangat, Kapten!`;
-                
                 const utterance = new SpeechSynthesisUtterance(text);
-                utterance.lang = 'id-ID'; // Wajib logat Indonesia
-                utterance.rate = 0.95; // Sedikit lebih lambat biar jelas saat kena angin
+                utterance.lang = 'id-ID';
+                utterance.rate = 0.95;
                 utterance.pitch = 1.0; 
                 
+                // Efek Ducking (Kecilkan Musik)
+                if (!audioPlayer.paused) audioPlayer.volume = 0.15;
+                utterance.onend = function() {
+                    audioPlayer.volume = 1.0;
+                };
+
                 window.speechSynthesis.speak(utterance);
             }
         }
@@ -680,6 +711,57 @@ $captain_name = $settings['captain_name'] ?? 'Kapten';
             // Beri feedback sedikit getaran jika didukung HP
             if (navigator.vibrate) navigator.vibrate(50);
         }
+
+        // ==========================================
+        // KAYOOH LOCAL JUKEBOX (SHUFFLE NO-REPEAT)
+        // ==========================================
+        let playlist = [];
+        let currentTrackIndex = 0;
+        const audioPlayer = new Audio();
+
+        // Algoritma Fisher-Yates Shuffle (Mengocok Array)
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]]; // Tukar posisi
+            }
+        }
+
+        function loadAndPlayMusic(event) {
+            const files = event.target.files;
+            if (files.length === 0) return;
+
+            playlist = Array.from(files); // Masukkan semua mp3 ke antrean
+            shuffleArray(playlist);       // Kocok urutannya!
+            currentTrackIndex = 0;        // Mulai dari lagu urutan pertama
+            
+            playCurrentTrack();
+        }
+
+        function playCurrentTrack() {
+            if (playlist.length === 0) return;
+            
+            // Bersihkan memori Blob URL lagu sebelumnya agar RAM tidak bocor
+            if (audioPlayer.src) URL.revokeObjectURL(audioPlayer.src);
+
+            const file = playlist[currentTrackIndex];
+            audioPlayer.src = URL.createObjectURL(file);
+            audioPlayer.play();
+            console.log("Memutar lagu: " + file.name);
+        }
+
+        // Sensor otomatis saat lagu habis
+        audioPlayer.onended = function() {
+            currentTrackIndex++; // Lanjut ke lagu berikutnya
+            
+            // Cek apakah ini lagu terakhir di antrean?
+            if (currentTrackIndex >= playlist.length) {
+                console.log("Playlist habis. Mengocok ulang 10 lagu!");
+                shuffleArray(playlist); // Kocok ulang formasi!
+                currentTrackIndex = 0;  // Mulai lagi dari indeks 0
+            }
+            playCurrentTrack();
+        };
     </script>
 </body>
 </html>

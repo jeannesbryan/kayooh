@@ -3,381 +3,299 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
     <title>Kayooh - Ultimate Self-Hosted GPS Cycling Tracker</title>
+    <meta name="description" content="Kayooh adalah aplikasi pelacak sepeda (GPS Cycling Tracker) mandiri (Self-Hosted) kelas Enterprise. Dilengkapi Radio Peleton, Smart Voice Coach, Stealth Mode, dan kedaulatan data penuh tanpa biaya langganan.">
+    <meta name="keywords" content="Kayooh, GPS Cycling Tracker, Self-Hosted Tracker, Strava Alternative, Aplikasi Sepeda, Radar Peleton, Tracker Sepeda, Open Source Cycling, GPS Logger">
+    <meta name="author" content="Kayooh Project">
+    <meta name="robots" content="index, follow">
+    <meta name="theme-color" content="#FF6600">
+
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Kayooh Tracker - Kedaulatan Data di Tangan Anda">
+    <meta property="og:description" content="Aplikasi pelacak sepeda mandiri dengan fitur Radio Peleton, Smart Voice Coach, dan Telemetri Suhu.">
+    <meta property="og:image" content="assets/kayooh.png">
+    <meta property="og:url" content="https://github.com/jeannesbryan/kayooh">
+
     <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16x16.png">
     <link rel="manifest" href="assets/site.webmanifest">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
     <style>
         :root {
-            --primary-color: #FF6600;
+            --primary: #FF6600;
             --primary-hover: #E65C00;
-            --background-color: #F4F4F9;
-            --text-color: #2C3E50;
-            --white: #ffffff;
-        }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: var(--background-color);
-            color: var(--text-color);
-            margin: 0;
-            padding: 40px 20px;
-            line-height: 1.8;
-        }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            background: var(--white);
-            padding: 50px;
-            border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-        }
-        .header {
-            text-align: center;
-            padding-bottom: 30px;
-            margin-bottom: 40px;
-        }
-        .logo-img {
-            height: 60px;
-            width: auto;
-            margin-bottom: 15px;
-        }
-        .tagline {
-            font-size: 18px;
-            font-weight: 600;
-            color: #7f8c8d;
-            margin-top: 0;
-        }
-        .hashtag {
-            display: inline-block;
-            background-color: rgba(255, 102, 0, 0.1);
-            color: var(--primary-color);
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-weight: 800;
-            font-size: 14px;
-            margin-top: 15px;
-        }
-        h2 {
-            color: var(--text-color);
-            border-left: 5px solid var(--primary-color);
-            padding-left: 15px;
-            margin-top: 50px;
-            font-size: 22px;
-            text-transform: uppercase;
-            letter-spacing: -0.5px;
-        }
-        h3 {
-            font-size: 17px;
-            color: #2c3e50;
-            margin-top: 35px;
-            font-weight: 800;
-        }
-        p, li {
-            font-size: 15px;
-            color: #5d6d7e;
-        }
-        .pro-con-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin-top: 20px;
-        }
-        .box-list {
-            padding: 20px;
-            border-radius: 12px;
-            font-size: 14px;
-        }
-        .pro-box { background-color: #f0fdf4; border: 1px solid #bbf7d0; }
-        .con-box { background-color: #fff5f5; border: 1px solid #feb2b2; }
-        .pro-box h4 { color: #166534; margin-top: 0; }
-        .con-box h4 { color: #c53030; margin-top: 0; }
-        
-        pre {
-            background: #2C3E50;
-            color: #ecf0f1;
-            padding: 20px;
-            border-radius: 12px;
-            overflow-x: auto;
-            font-size: 13px;
-            margin: 20px 0;
-        }
-        .guide-step {
-            background: #fff;
-            border: 1px solid #eee;
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 20px;
-        }
-        .guide-step b { color: var(--primary-color); }
-        .tg-highlight { color: #0088cc; font-weight: bold; }
-        
-        .footer {
-            margin-top: 60px;
-            text-align: center;
-            font-size: 13px;
-            color: #000000;
-            border-top: 1px solid #edf2f7;
-            padding-top: 30px;
-            font-weight: 500;
-        }
-        .footer a {
-            color: var(--primary-color);
-            text-decoration: none;
-            font-weight: bold;
-        }
-        .footer a:hover {
-            text-decoration: underline;
+            --secondary: #2C3E50;
+            --bg-body: #F4F7F6;
+            --bg-card: #FFFFFF;
+            --text-main: #1E293B;
+            --text-muted: #64748B;
+            --border: #E2E8F0;
+            --radius-lg: 24px;
+            --radius-md: 16px;
+            --shadow-soft: 0 20px 40px -10px rgba(0,0,0,0.05);
+            --shadow-hover: 0 30px 60px -15px rgba(255,102,0,0.15);
         }
 
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            line-height: 1.7;
+        }
+
+        /* --- HERO SECTION --- */
+        .hero {
+            background: linear-gradient(135deg, var(--secondary) 0%, #1a252f 100%);
+            color: white;
+            text-align: center;
+            padding: 80px 20px 100px;
+            position: relative;
+            overflow: hidden;
+        }
+        .hero::after {
+            content: ''; position: absolute; bottom: -50px; left: 0; width: 100%; height: 100px;
+            background: var(--bg-body); transform: skewY(-3deg);
+        }
+        .logo-img { height: 70px; margin-bottom: 20px; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3)); }
+        .hero h1 { font-size: 36px; font-weight: 800; margin: 0 0 15px; letter-spacing: -1px; }
+        .hero p { font-size: 18px; color: #cbd5e1; max-width: 600px; margin: 0 auto; font-weight: 400; }
+        .hashtag {
+            display: inline-block; background: var(--primary); color: white;
+            padding: 8px 24px; border-radius: 30px; font-weight: 800; font-size: 14px;
+            margin-top: 25px; box-shadow: 0 4px 15px rgba(255,102,0,0.4);
+            letter-spacing: 1px;
+        }
+
+        /* --- MAIN CONTAINER --- */
+        .container { max-width: 900px; margin: -40px auto 60px; position: relative; z-index: 10; padding: 0 20px; }
+
+        /* --- TYPOGRAPHY & SPACING --- */
+        section { background: var(--bg-card); border-radius: var(--radius-lg); padding: 50px; margin-bottom: 30px; box-shadow: var(--shadow-soft); }
+        h2 { color: var(--secondary); font-size: 28px; font-weight: 800; letter-spacing: -0.5px; margin-top: 0; margin-bottom: 25px; display: flex; align-items: center; gap: 12px; }
+        h2::before { content: ''; display: block; width: 6px; height: 28px; background: var(--primary); border-radius: 4px; }
+        h3 { font-size: 18px; color: var(--secondary); font-weight: 700; margin: 30px 0 15px; padding-bottom: 10px; border-bottom: 2px solid var(--bg-body); }
+        p, li { font-size: 15px; color: var(--text-muted); }
+        ul, ol { padding-left: 20px; }
+        li { margin-bottom: 10px; }
+
+        /* --- FEATURES GRID --- */
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
+        .feature-card { padding: 30px; border-radius: var(--radius-md); border: 1px solid var(--border); transition: 0.3s; }
+        .feature-card:hover { transform: translateY(-5px); box-shadow: var(--shadow-hover); border-color: var(--primary); }
+        .feature-pro { background: #f8fafc; border-top: 4px solid #10b981; }
+        .feature-con { background: #fdf2f8; border-top: 4px solid #f43f5e; }
+        .feature-card h4 { margin: 0 0 15px; font-size: 18px; display: flex; align-items: center; gap: 10px; }
+        .feature-pro h4 { color: #047857; }
+        .feature-con h4 { color: #be123c; }
+
+        /* --- HIGHLIGHTS & CODE --- */
+        b { color: var(--secondary); font-weight: 700; }
+        .tg-highlight { background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 6px; font-family: monospace; font-weight: 600; font-size: 14px; }
+        pre { background: #0f172a; color: #38bdf8; padding: 20px; border-radius: var(--radius-md); overflow-x: auto; font-family: 'Consolas', monospace; font-size: 13px; line-height: 1.5; border: 1px solid #1e293b; }
+        code { background: #f1f5f9; color: #e11d48; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 13px; }
+
+        /* --- STEP CARDS --- */
+        .guide-step { background: #ffffff; border: 1px solid var(--border); padding: 30px; border-radius: var(--radius-md); margin-bottom: 25px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); }
+        .guide-step ol li::marker { font-weight: 800; color: var(--primary); }
+
+        /* --- FOOTER --- */
+        .footer { text-align: center; padding: 40px 20px; color: var(--text-muted); font-size: 14px; font-weight: 500; }
+        .footer a { color: var(--primary); text-decoration: none; font-weight: 700; padding: 8px 16px; border-radius: 20px; background: rgba(255,102,0,0.1); transition: 0.2s; display: inline-block; margin-top: 15px; }
+        .footer a:hover { background: var(--primary); color: white; }
+
+        /* --- MOBILE RESPONSIVE --- */
         @media (max-width: 768px) {
-            body { padding: 0; background-color: var(--white); }
-            .container { padding: 30px 20px; border-radius: 0; box-shadow: none; }
-            .header { padding-bottom: 20px; margin-bottom: 20px; }
-            .tagline { font-size: 16px; }
-            h2 { margin-top: 40px; }
-            .pro-con-grid { grid-template-columns: 1fr; }
+            .hero { padding: 60px 20px 80px; }
+            .hero h1 { font-size: 28px; }
+            section { padding: 30px 20px; }
+            .grid-2 { grid-template-columns: 1fr; }
+            .container { margin-top: -20px; }
         }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div class="header">
+    <header class="hero">
         <img src="assets/kayooh.png" alt="Kayooh" class="logo-img">
-        <p class="tagline">Gowes tenang, data aman. Ringan di memori, canggih di telemetri.</p>
+        <h1>Kedaulatan Data di Tangan Anda</h1>
+        <p>Gowes tenang, data aman. Tracker cerdas mandiri yang ringan di memori, namun sangat mematikan di jalanan aspal.</p>
         <div class="hashtag">#KayoohTerus</div>
-    </div>
+    </header>
 
-    <h2>Filosofi & Nilai Jual</h2>
-    <p><b>Kayooh</b> adalah aplikasi pelacak gowes mandiri (Self-Hosted) kelas Enterprise yang memberikan kedaulatan penuh atas data pribadi Anda. Dengan arsitektur hybrid terbaru yang memisahkan beban *database* lokal dan satelit *Object Storage*, Kayooh menjamin kinerja secepat kilat meski menyimpan puluhan ribu rekor gowes Anda seumur hidup.</p>
+    <main class="container">
+        <section id="filosofi">
+            <h2>Filosofi & Nilai Jual</h2>
+            <p><b>Kayooh</b> adalah aplikasi pelacak gowes mandiri (Self-Hosted) kelas Enterprise yang memberikan kedaulatan penuh atas data pribadi Anda. Dengan arsitektur hybrid terbaru yang memisahkan beban <i>database</i> lokal dan satelit <i>Object Storage</i>, Kayooh menjamin kinerja secepat kilat meski menyimpan puluhan ribu rekor gowes Anda seumur hidup.</p>
+        </section>
 
-    <h2>Fitur Unggulan</h2>
-    <div class="pro-con-grid">
-        <div class="box-list pro-box">
-            <h4>✅ Kelebihan Utama & Fitur Super</h4>
+        <section id="fitur">
+            <h2>Fitur Unggulan</h2>
+            <div class="grid-2">
+                <div class="feature-card feature-pro">
+                    <h4>✅ Kelebihan & Fitur Super</h4>
+                    <ul>
+                        <li><b>🎙️ Radio Peleton (Walkie Talkie)</b>: Komunikasi suara antar peserta murni via <i>browser</i> dengan Native Web API. Terdapat <i>Auto-Sweeper</i> pembersih cache memori.</li>
+                        <li><b>🗣️ Smart Voice Coach</b>: Asisten suara pintar berbahasa Indonesia pembaca jarak dan kecepatan setiap 5 KM.</li>
+                        <li><b>💧 Hydration Coach & Night Mode</b>: Asisten pengingat minum tiap 20 menit, dan peta adaptif yang otomatis berubah gelap di malam hari.</li>
+                        <li><b>🌑 Stealth Mode (Pocket Lock)</b>: Fitur UI hitam pekat penyelamat baterai AMOLED dan anti-kepencet di dalam tas (Double Tap to Wake).</li>
+                        <li><b>🎵 Local Jukebox Engine</b>: Pemutar musik MP3 <i>offline</i> mandiri terintegrasi di layar perekaman. Dilengkapi algoritma <i>Smart Shuffle</i> anti-ulang, <i>Panic Skip Button</i>, dan efek redup otomatis (<i>Audio Ducking</i>) saat <i>Voice Coach</i> berbicara.</li>
+                        <li><b>Cloudflare R2 Integration</b>: <i>Database</i> SQLite dijamin bebas bengkak. Kordinat masif dititipkan aman ke satelit Cloudflare R2 secara instan.</li>
+                        <li><b>IndexedDB Black Box</b>: Penyimpanan darurat <i>offline</i> tahan banting dari resiko <i>browser crash</i>.</li>
+                        <li><b>Peleton Radar Sync</b>: Mesin pengawas terpusat pemantau titik seluruh peserta Peleton secara <i>real-time</i> di satu peta.</li>
+                        <li><b>Strava Mass-Sync</b>: Mesin penyedot data dengan <i>Pagination</i> aman untuk menarik ratusan sejarah gowes lawas.</li>
+                        <li><b>Live Tracking Telegram</b>: Siaran posisi dan notifikasi Start/Finish langsung ke grup Telegram keluarga secara otomatis.</li>
+                        <li><b>Telemetri Suhu Udara</b>: Sensor cuaca otomatis via Open-Meteo API setiap 15 menit berjalan.</li>
+                        <li><b>Offline GPX Extractor</b>: Kemerdekaan mutlak mengekstrak rute jadi <code>.gpx</code> murni tanpa pihak ketiga.</li>
+                        <li><b>📸 Social Flexing (Share Map/Stats)</b>: Ekspor jalur rute dan statistik gowes Anda menjadi gambar premium yang siap dipamerkan ke Instagram atau grup WhatsApp hanya dengan satu klik!</li>
+                    </ul>
+                </div>
+                <div class="feature-card feature-con">
+                    <h4>⚠️ Catatan Penggunaan</h4>
+                    <ul>
+                        <li><b>Konfigurasi Cloudflare R2 (Opsional/Disarankan)</b>: Tidak wajib, namun sangat direkomendasikan untuk menautkan <i>bucket</i> R2 agar memori/hardisk VPS atau hosting Anda tidak bengkak oleh tumpukan file JSON rute.</li>
+                        <li><b>Konsumsi Baterai Ekstra</b>: Menggunakan <i>Wake Lock API</i> agar layar HP terus menyala. Pastikan baterai Anda penuh atau gunakan <b>Stealth Mode</b>.</li>
+                        <li><b>Ketergantungan Internet</b>: Meski <i>Black Box</i> bekerja <i>offline</i>, fitur Radar Peleton, Live Telegram, dan R2 mewajibkan koneksi internet aktif.</li>
+                        <li><b>Sertifikat SSL (HTTPS) Mutlak</b>: Fitur keamanan sensor <i>Geolocation browser</i> (Chrome/Safari) mewajibkan akses via HTTPS.</li>
+                        <li><b>Akurasi Perangkat</b>: Kayooh meminta akurasi tinggi. Jika cuaca buruk atau HP di dalam tas tebal, rute garis (polyline) mungkin sedikit melompat.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section id="transparansi">
+            <h2>Transparansi API Eksternal</h2>
+            <p>Kayooh hanya mengandalkan beberapa layanan publik kelas kakap untuk memaksimalkan fitur tanpa mengorbankan privasi Anda:</p>
             <ul>
-                <li><b>🎙️ Radio Peleton (Walkie Talkie)</b>: Komunikasi suara antar peserta murni via <i>browser</i> dengan Native Web API. Terdapat <i>Auto-Sweeper</i> yang otomatis membersihkan <i>cache</i> audio di server agar memori selalu lega.</li>
-                <li><b>🗣️ Smart Voice Coach</b>: Asisten suara pintar berbahasa Indonesia yang akan membacakan statistik jarak dan kecepatan setiap kelipatan 5 KM secara otomatis untuk menjaga fokus mata ke aspal.</li>
-                <li><b>Cloudflare R2 Integration</b>: <i>Database</i> SQLite Anda dijamin bebas bengkak! Seluruh titik kordinat masif kini dititipkan dengan aman ke satelit Cloudflare R2 secara instan. Server PHP Anda jadi super ringan.</li>
-                <li><b>Universal Route Parser</b>: Peta pintar yang mampu menerjemahkan segala jenis data secara otomatis: Sandi Strava jadul (Encoded Polyline), JSON Lokal, hingga JSON dari Cloudflare R2.</li>
-                <li><b>IndexedDB Black Box</b>: Penyimpanan darurat (Black Box) kini ditenagai oleh mesin <i>IndexedDB</i>. Tahan banting dari resiko <i>browser crash</i> atau tertutup tak sengaja, data gowes Anda tak akan hilang.</li>
-                <li><b>Peleton Radar Sync</b>: Mesin pengawas terpusat (<code>radar_sync.php</code>) yang menyatukan sinyal seluruh peserta di satu peta secara <i>real-time</i>. Dilengkapi fitur <i>Auto-Clean</i> dan <i>Ghost Sweeper</i> (menghapus peserta yang hilang sinyal).</li>
-                <li><b>Strava Mass-Sync</b>: Mesin penyedot data (Strava Sync) dengan fitur <i>Pagination</i> aman yang mampu menarik ratusan sejarah gowes lawas Anda tanpa membuat server <i>timeout</i> atau duplikat data.</li>
-                <li><b>Live Tracking Telegram</b>: Siaran posisi <i>real-time</i> dan notifikasi Start/Finish langsung ke grup Telegram keluarga secara hibrida untuk memastikan keselamatan Anda di jalan.</li>
-                <li><b>Telemetri Suhu Udara</b>: Sensor cuaca pintar yang mengambil sampel suhu lingkungan otomatis via Open-Meteo API setiap 15 menit, lalu merata-ratakannya di akhir gowes.</li>
-                <li><b>Video Flexing Sinematik</b>: Putar ulang rute gowes dalam animasi video interaktif dengan dukungan layar penuh (Fullscreen) dan visual yang adaptif terhadap Dark/Light Mode. Sangat cocok untuk direkam dan dibagikan ke media sosial.</li>
-                <li><b>Personal Heatmap (Live Theme)</b>: Visualisasikan seluruh "daerah kekuasaan" aspal Anda dalam satu peta bercahaya yang di-<i>render</i> super cepat menggunakan algoritma <i>Asynchronous Loading</i> dan <i>Overlapping Opacity</i>.</li>
-                <li><b>Offline GPX Extractor & Importer</b>: Kemerdekaan mutlak dari pihak ketiga! Ekstrak file <code>.gpx</code> secara <i>offline</i>, atau impor data GPX Peleton teman ke dalam <i>database</i> Anda sendiri (lengkap dengan lencana 👥 Peleton).</li>
-                <li><b>Anti Brute-Force & Safe Logout</b>: Gerbang <i>login</i> dilengkapi <i>Database IP Blocker</i> (memblokir IP setelah 5x gagal). Sistem Logout juga menyapu bersih <i>cache</i> sesi secara elegan di memori peramban.</li>
-                <li><b>Multi-Metrik Otomatis</b>: Kalkulasi presisi tinggi untuk Jarak (Haversine formula), Kecepatan Maksimum, Waktu Bergerak (Moving Time), Elevasi, hingga fitur <i>Auto-Pause</i> cerdas saat Anda berhenti di lampu merah.</li>
+                <li><b>Cloudflare R2 Storage</b>: Bertindak sebagai Gudang Kontainer tempat jutaan titik kordinat bersandar.</li>
+                <li><b>Telegram Bot API</b>: Untuk membangun "Grup Komando" dan siaran <i>Live Location</i>.</li>
+                <li><b>Open-Meteo API</b>: Menghitung total elevasi bukit dan mengambil sampel suhu udara.</li>
+                <li><b>OSRM (Open Source Routing Machine)</b>: "Tukang setrika" koordinat GPS agar rapi mengikuti alur aspal.</li>
+                <li><b>OpenStreetMap (OSM) & CartoDB</b>: Dimuat melalui Leaflet.js sebagai kanvas peta (Standard & Dark Mode).</li>
+                <li><b>Strava API</b>: Digunakan HANYA jika Anda ingin mengimpor data sejarah gowes secara sukarela.</li>
+                <li><b>HTML5 Native APIs</b>: Memanfaatkan MediaRecorder (Radio), SpeechSynthesis (Voice), dan WakeLock API tanpa <i>plugin</i> pihak ketiga.</li>
             </ul>
-        </div>
-        <div class="box-list con-box">
-            <h4>⚠️ Karakteristik & Catatan Penggunaan</h4>
-            <ul>
-                <li><b>Konfigurasi Cloudflare R2 (Wajib)</b>: Agar performa Kayooh bekerja 100%, Anda diwajibkan melakukan <i>setup bucket</i> gratis di Cloudflare R2 dan memasukkan kredensial API-nya di menu Pengaturan Kayooh.</li>
-                <li><b>Konsumsi Baterai Ekstra</b>: Aplikasi ini menggunakan <i>Wake Lock API</i> agar layar HP terus menyala (mencegah sensor GPS tertidur oleh OS HP). Pastikan baterai Anda penuh atau bawa <i>Powerbank</i> untuk <i>touring</i> jarak jauh.</li>
-                <li><b>Ketergantungan Internet</b>: Meski memori <i>Black Box</i> (IndexedDB) bisa merekam secara <i>offline</i> saat di area <i>blank-spot</i>, fitur tingkat lanjut seperti Radar Peleton, Live Telegram, dan penyimpanan R2 mewajibkan koneksi internet aktif, terutama di garis <i>finish</i>.</li>
-                <li><b>Sertifikat SSL (HTTPS) Mutlak</b>: Fitur keamanan sensor Geolocation pada <i>browser</i> modern (Chrome/Safari) mewajibkan akses melalui HTTPS. Aplikasi tidak akan bisa membaca GPS jika diakses hanya dengan HTTP.</li>
-                <li><b>Akurasi GPS Bergantung pada Perangkat</b>: Kayooh meminta izin <i>enableHighAccuracy</i> ke perangkat Anda. Jika cuaca sangat buruk atau HP berada jauh di dalam tas/kantong tebal, rute garis (polyline) mungkin akan sedikit melompat.</li>
-            </ul>
-        </div>
-    </div>
+        </section>
 
-    <h2>Transparansi & API Eksternal</h2>
-    <p>Kayooh sangat menghargai privasi Anda. Aplikasi ini hanya mengandalkan beberapa layanan publik dan API kelas kakap untuk memaksimalkan fitur tanpa mengorbankan kedaulatan data Anda:</p>
-    <ul>
-        <li><b>Cloudflare R2 Storage</b>: Bertindak sebagai "Satelit/Gudang Kontainer" tempat jutaan titik kordinat GPS Anda bersandar dengan aman, cepat, dan tanpa membebani <i>server hosting</i> pribadi.</li>
-        <li><b>Telegram Bot API</b>: Digunakan untuk membangun "Grup Komando", menyiarkan <i>Live Location</i> (Radar), dan mengirim rangkuman metrik gowes otomatis ke ruang obrolan pribadi Anda.</li>
-        <li><b>Open-Meteo API</b>: Digunakan murni untuk menghitung total elevasi bukit dan mengambil sampel suhu udara lingkungan setiap 15 menit berjalan.</li>
-        <li><b>OSRM (Open Source Routing Machine) API</b>: Berperan sebagai "tukang setrika" yang menempelkan titik-titik koordinat GPS Anda agar rapi mengikuti alur aspal di peta.</li>
-        <li><b>OpenStreetMap (OSM)</b>: Dimuat melalui <i>library</i> Leaflet.js sebagai kanvas visual pemetaan dasar.</li>
-        <li><b>CartoDB Maps API</b>: Digunakan sebagai <i>basemap</i> beresolusi tinggi pada Studio Video Flexing dan Personal Heatmap untuk mengakomodasi transisi tema <i>Dark/Light Mode</i> secara dinamis.</li>
-        <li><b>Strava API</b>: Digunakan hanya jika Anda memilih untuk melakukan "Sync Strava" secara sukarela untuk menyedot data historis.</li>
-        <li><b>HTML5 Fullscreen & WakeLock API</b>: Memungkinkan Studio Video Kayooh menelan seluruh layar HP demi hasil rekaman layar yang bersih, serta menjaga layar dan sensor GPS tetap hidup menyala saat merekam gowes di aspal.</li>
-    </ul>
+        <section id="panduan-instalasi">
+            <h2>Panduan Instalasi Server (First-Time Setup)</h2>
+            <p>Kayooh dirancang agar sangat ringan dan gampang di-deploy di VPS atau Shared Hosting (cPanel).</p>
+            <div class="guide-step">
+                <ol>
+                    <li><b>Persyaratan Sistem:</b> Pastikan <i>server</i> menjalankan PHP (versi 7.4/8.0+) dan ekstensi <b>SQLite3</b> aktif.</li>
+                    <li><b>Unggah File:</b> <i>Upload source code</i> Kayooh ke direktori web Anda (misal: <code>public_html/</code>).</li>
+                    <li><b>Hak Akses (Permissions):</b> Pastikan folder instalasi memiliki izin tulis (misal: <code>chmod 755</code>) untuk menciptakan <code>kayooh.sqlite</code> dan menulis <i>log</i>.</li>
+                    <li><b>Jalankan Installer:</b> Buka URL instalasi: <span class="tg-highlight">https://domain-anda.com/install.php</span></li>
+                    <li><b>Buat Akun Kapten:</b> Masukkan email dan sandi kuat. Sistem otomatis mengunci file instalasi setelah selesai.</li>
+                </ol>
+            </div>
+        </section>
 
-    <h2>Panduan Instalasi Server (First-Time Setup)</h2>
-    <p>Kayooh dirancang agar sangat ringan dan mudah di-<i>deploy</i> di VPS maupun <i>Shared Hosting</i> biasa. Berikut adalah langkah untuk menghidupkan Kayooh di <i>server</i> Anda:</p>
-    
-    <div class="guide-step">
-        <ol>
-            <li><b>Persyaratan Sistem:</b> Pastikan <i>server</i> Anda menjalankan PHP (direkomendasikan versi 7.4 atau 8.0+) dan ekstensi <b>SQLite3</b> telah diaktifkan.</li>
-            <li><b>Unggah File:</b> <i>Upload</i> atau <i>clone</i> seluruh <i>source code</i> Kayooh ke direktori <i>web server</i> Anda (misal: <code>public_html/</code> atau <code>/var/www/html/</code>).</li>
-            <li><b>Hak Akses (Permissions):</b> Pastikan <i>folder</i> instalasi Kayooh memiliki izin tulis (<i>writable</i>). Sistem PHP membutuhkan izin ini (misal: <code>chmod 755</code> atau <code>chown www-data</code>) untuk menciptakan <i>database</i> <code>kayooh.sqlite</code> serta menulis <i>log</i> kordinat di folder <code>/radar_logs</code> dan <code>/temp</code>.</li>
-            <li><b>Jalankan Installer:</b> Buka <i>browser</i> Anda dan akses alamat instalasi: <span class="tg-highlight">https://domain-anda.com/install.php</span></li>
-            <li><b>Buat Akun Kapten:</b> Masukkan email dan kata sandi yang kuat untuk mengamankan <i>dashboard</i> utama Anda. Setelah berhasil, sistem akan otomatis mengunci akses instalasi demi keamanan.</li>
-            <li><b>Selesai!</b> Kayooh siap digunakan. Lanjutkan ke tahap pengaturan Bot Telegram dan sinkronisasi Strava di bawah ini. (Opsional)</li>
-        </ol>
-    </div>
+        <section id="panduan-telegram">
+            <h2>Panduan Live Tracking Telegram</h2>
+            <p>Siarkan posisi gowes Anda langsung ke keluarga tanpa mereka harus menginstal aplikasi Kayooh!</p>
+            <div class="guide-step">
+                <h3>Langkah 1: Membuat Bot</h3>
+                <ol>
+                    <li>Cari <span class="tg-highlight">@BotFather</span> di Telegram. Ketik <code>/newbot</code> dan ikuti instruksi.</li>
+                    <li>Simpan <b>Bot Token API</b> yang diberikan.</li>
+                </ol>
+                <h3>Langkah 2: Grup Komando & Chat ID</h3>
+                <ol>
+                    <li>Buat grup keluarga dan masukkan Bot Anda ke dalamnya (jadikan Admin).</li>
+                    <li>Undang sementara bot <span class="tg-highlight">@RawDataBot</span> ke grup untuk melihat struktur datanya.</li>
+                    <li>Catat angka ID pada bagian <code>"chat": { "id": -100XXXXXXXXX }</code> (jangan lupakan tanda minusnya).</li>
+                </ol>
+                <h3>Langkah 3: Tautkan & Gowes</h3>
+                <ol>
+                    <li>Buka menu <b>⚙️ Pengaturan</b> di Dashboard Kayooh.</li>
+                    <li>Masukkan Bot Token dan Chat ID, lalu Simpan.</li>
+                    <li>Klik <b>🚀 SOLO</b> atau <b>👥 PELETON</b> untuk mulai mengirim notifikasi otomatis!</li>
+                </ol>
+            </div>
+        </section>
 
-    <h2>Panduan Live Tracking (Telegram & Peleton)</h2>
-    <p>Fitur andalan Kayooh adalah kemampuannya menyiarkan lokasi Anda secara langsung ke keluarga di rumah tanpa mereka perlu menginstal aplikasi pelacak tambahan. Cukup gunakan "Grup Komando" Telegram!</p>
-    
-    <div class="guide-step">
-        <h3>Langkah 1: Membuat Bot Telegram</h3>
-        <ol>
-            <li>Buka aplikasi Telegram dan cari akun <span class="tg-highlight">@BotFather</span>.</li>
-            <li>Ketik perintah <code>/newbot</code> dan ikuti instruksi untuk memberikan nama dan <i>username</i> (harus diakhiri kata "bot").</li>
-            <li>Setelah selesai, @BotFather akan memberikan <b>Bot Token API</b>. Simpan token ini baik-baik.</li>
-        </ol>
+        <section id="panduan-peleton">
+            <h2>Panduan Mode Peleton & Radio</h2>
+            <div class="guide-step">
+                <h3>Langkah 1: Inisiasi Kapten</h3>
+                <ol>
+                    <li>Klik <b>👥 PELETON</b> dari Dashboard. Sistem akan men-<i>generate</i> 6 digit Room ID.</li>
+                    <li>Klik <b>🔗 COPY LINK</b> dan bagikan tautannya ke grup WhatsApp teman gowes.</li>
+                </ol>
+                <h3>Langkah 2: Peserta Bergabung (Guest)</h3>
+                <ol>
+                    <li>Peserta mengklik link tadi, masukkan nama, dan klik <b>MULAI TRACKING</b>.</li>
+                    <li><i>Browser</i> Guest akan merekam kordinat mandiri dan memancarkannya ke Radar Kapten.</li>
+                </ol>
+                <h3>Langkah 3: Radio Peleton 🎙️</h3>
+                <ol>
+                    <li>Perhatikan panel radio di pojok kanan bawah.</li>
+                    <li>Tekan dan tahan tombol <b>🎤 TAHAN UNTUK BICARA</b>, lalu lepaskan untuk mengirim pesan suara ke seluruh grup seketika!</li>
+                </ol>
+            </div>
+        </section>
 
-        <h3>Langkah 2: Membuat "Grup Komando"</h3>
-        <ol>
-            <li>Buat grup Telegram baru (misal: "Pantau Bapak Gowes") atau gunakan grup keluarga Anda yang sudah ada.</li>
-            <li>Masukkan istri, anak, rekan Peleton, dan <b>Bot yang baru Anda buat tadi</b> ke dalam grup tersebut.</li>
-            <li><i>(Opsional tapi disarankan)</i> Jadikan bot Anda sebagai Admin grup agar lebih leluasa mengirim peta dan pesan.</li>
-        </ol>
+        <section id="panduan-strava">
+            <h2>Panduan Sinkronisasi API Strava</h2>
+            <div class="guide-step">
+                <ol>
+                    <li>Buka halaman <a href="https://www.strava.com/settings/api" target="_blank" style="color:var(--primary); font-weight:bold;">Strava API Settings</a> di PC Anda.</li>
+                    <li>Buat aplikasi. Pada kolom <b>Authorization Callback Domain</b>, isi <i>hanya domain Anda</i> (misal: <code>jomokerto.web.id</code>).</li>
+                    <li>Catat <b>Client ID</b> dan <b>Client Secret</b> yang muncul.</li>
+                    <li>Masukkan ke dalam menu <b>🧡 SYNC</b> di Dashboard Kayooh, dapatkan token sakti, dan klik Sinkronisasi!</li>
+                </ol>
+            </div>
+        </section>
 
-        <h3>Langkah 3: Mengunci Target (Chat ID)</h3>
-        <ol>
-            <li>Anda perlu mengetahui "ID" dari grup tersebut. Cara paling mudah: undang bot tambahan bernama <span class="tg-highlight">@RawDataBot</span> ke dalam grup Anda.</li>
-            <li>Bot itu akan merespons dengan struktur data. Cari bagian <code>"chat": { "id": -100XXXXXXXXX }</code>.</li>
-            <li>Catat angka tersebut! Format ID Grup Telegram biasanya selalu diawali dengan <b>tanda minus</b>.</li>
-            <li><i>(Keluarkan @RawDataBot dari grup setelah ID didapatkan agar grup kembali rapi).</i></li>
-        </ol>
-
-        <h3>Langkah 4: Menghubungkan ke Kayooh</h3>
-        <ol>
-            <li>Buka Dashboard Kayooh Anda, lalu klik ikon <b>⚙️ (Pengaturan)</b> di pojok kanan atas layar.</li>
-            <li>Masukkan <b>Bot Token API</b> dan <b>Chat ID Grup</b> ke dalam form yang tersedia.</li>
-            <li>Klik <b>SIMPAN PENGATURAN</b>.</li>
-        </ol>
-
-        <h3>Langkah 5: Siap Gowes! 🚀</h3>
-        <p>Sekarang, Anda tidak perlu repot lagi! Buka Dashboard Kayooh, lalu pilih mode gowes Anda:</p>
-        <ul>
-            <li><b>Single Ride:</b> Klik <b>🚀 SOLO</b>. Peta Live Location dan notifikasi otomatis akan langsung muncul di Grup Telegram keluarga Anda!</li>
-            <li><b>Mode Peleton:</b> Klik <b>👥 PELETON</b>. Anda bisa membagikan <b>Link Radar Web</b> ke teman-teman gowes. Titik Anda dan titik teman-teman Anda akan muncul bersamaan di satu peta khusus.</li>
-            <li>Saat Anda menekan tombol Selesai, Bot Telegram akan otomatis mengirimkan rangkuman kecepatan, jarak, elevasi, suhu, beserta gambar keren pamer ke grup tersebut!</li>
-        </ul>
-    </div>
-
-    <h2>Panduan Mode Peleton (Co-Gowes) & Auto-Flexing</h2>
-    <p>Mode Peleton adalah fitur "Sultan" di Kayooh. Kapten (Host) dapat menyatukan titik lokasi teman-teman (Guest) dalam satu layar Radar. Kerennya lagi, perangkat Guest akan menghitung statistiknya sendiri secara mandiri!</p>
-    
-    <div class="guide-step">
-        <h3>Langkah 1: Inisiasi oleh Kapten (Host)</h3>
-        <ol>
-            <li>Buka Dashboard Kayooh, klik tombol <b>👥 PELETON</b>.</li>
-            <li>Sistem akan otomatis men-<i>generate</i> <b>6 digit Room ID</b> unik (atau Anda bisa mengetikkan nama Room sendiri).</li>
-            <li>Klik tombol <b>🔗 COPY LINK</b> di dalam layar perekaman, lalu bagikan tautan tersebut ke grup obrolan (WA/Telegram) teman-teman gowes Anda.</li>
-            <li>Klik tombol hijau <b>▶️ MULAI GOWES PELETON</b> untuk mulai merekam aktivitas.</li>
-        </ol>
-
-        <h3>Langkah 2: Bergabung ke Radar (Guest)</h3>
-        <ol>
-            <li>Peserta (Guest) cukup mengklik tautan Radar yang dibagikan Kapten (tidak perlu mendaftar akun atau instal aplikasi).</li>
-            <li>Masukkan nama panggilan (maksimal 15 huruf), lalu klik <b>🚀 MULAI TRACKING</b>.</li>
-            <li><i>Browser</i> Guest akan secara ajaib <b>menghitung jarak tempuh pribadi di latar belakang</b> sekaligus memancarkan kordinat ke server Kapten. <br><b>⚠️ Penting:</b> Pastikan layar HP dibiarkan menyala agar sensor GPS maksimal!</li>
-        </ol>
-
-        <h3>Langkah 3: Akhiri, Simpan Peserta, & Flexing Ekosistem!</h3>
-        <ol>
-            <li>Setelah sampai di garis <i>finish</i>, Kapten menekan tombol <b>🏁 SELESAI GOWES PELETON</b>.</li>
-            <li>Sistem akan memunculkan <i>prompt</i> otomatis. Konfirmasi nama-nama peserta untuk disimpan permanen ke riwayat Kapten. Kayooh akan langsung memecah kordinat (Chunking) dan mengirimkannya ke satelit R2!</li>
-            <li><b>Bonus Untuk Guest:</b> Sesaat setelah Kapten menekan tombol selesai, di layar Guest akan otomatis memunculkan tombol <b>"📥 AMANKAN GPX SAYA"</b>. Guest dapat mengunduh file GPX rute mandirinya yang sudah tertanam Sandi Rahasia Peleton. Saat GPX ini diunggah ke <i>server</i> Kayooh miliknya sendiri, riwayat Peleton akan otomatis sinkron!</li>
-        </ol>
-        <h3>Langkah 4: Komunikasi Radio Peleton 🎙️</h3>
-        <ol>
-            <li>Di layar perekaman Peleton, perhatikan panel radio di pojok kanan bawah.</li>
-            <li>Tekan dan tahan tombol merah <b>"🎤 TAHAN UNTUK BICARA"</b>, ucapkan pesan Anda, lalu lepaskan.</li>
-            <li>Sistem akan mengirimkan <i>voice note</i> ke seluruh anggota Peleton. Perangkat mereka akan membunyikan notifikasi "Ping!" dan pesan bisa diputar manual agar tidak mengagetkan saat gowes.</li>
-        </ol>
-    </div>
-
-    <h2>Panduan Lengkap API Strava</h2>
-    <p>Agar Kayooh bisa menarik data lama Anda dari Strava, Anda perlu mendaftarkan aplikasi di portal pengembang Strava:</p>
-
-    <div class="guide-step">
-        <h3>Langkah 1: Membuat Aplikasi API</h3>
-        <ol>
-            <li>Login ke akun Strava Anda di PC/Laptop.</li>
-            <li>Buka halaman <b>My API Application</b>: <a href="https://www.strava.com/settings/api" target="_blank">strava.com/settings/api</a>.</li>
-            <li>Isi formulir pembuatan aplikasi sebagai berikut:
-                <ul>
-                    <li><b>Application Name</b>: Contoh: "Kayooh"</li>
-                    <li><b>Category</b>: Pilih "Visualizer" atau "Other"</li>
-                    <li><b>Website</b>: Isi dengan URL domain Kayooh Anda (misal: <code>https://jomokerto.web.id</code>)</li>
-                    <li><b>Application Description</b>: Contoh: "Self-hosted cycling tracker for personal use"</li>
-                    <li><b>Authorization Callback Domain</b>: <b>PENTING!</b> Isi dengan nama domain saja tanpa https dan tanpa folder (misal: <code>jomokerto.web.id</code>)</li>
-                </ul>
-            </li>
-            <li>Klik <b>Create</b>. Jika diminta mengunggah ikon, unggah gambar apa saja berukuran persegi.</li>
-        </ol>
-
-        <h3>Langkah 2: Mendapatkan Kredensial</h3>
-        <ol>
-            <li>Setelah aplikasi dibuat, Anda akan melihat halaman ringkasan aplikasi.</li>
-            <li>Catat <b>Client ID</b> dan <b>Client Secret</b> yang muncul. Jangan berikan kode ini kepada siapapun!</li>
-        </ol>
-
-        <h3>Langkah 3: Menghubungkan ke Kayooh</h3>
-        <ol>
-            <li>Buka Dashboard Kayooh Anda, lalu klik tombol <b>🧡 SYNC</b> di deretan menu atas.</li>
-            <li>Masukkan <i>Client ID</i> dan <i>Client Secret</i> tadi ke form, lalu klik <b>SIMPAN PENGATURAN</b>.</li>
-            <li>Klik tombol <b>🔑 Dapatkan Token Sakti</b>. Berikan izin akses pada halaman Strava yang muncul.</li>
-            <li>Setelah kembali ke Kayooh, klik <b>SINKRONISASI SEKARANG</b> untuk mulai mengimpor data sejarah gowes Anda.</li>
-        </ol>
-    </div>
-
-    <h2>Panduan Setup Cloudflare R2 (Penyimpanan Media)</h2>
-    <div class="pro-box" style="margin-bottom: 40px;">
-        <p>Untuk menyimpan foto <i>share</i> peta dan sinkronisasi rute tanpa membebani hardisk VPS/Hosting Anda, Kayooh mendukung integrasi penuh dengan Cloudflare R2 (Gratis 10GB/bulan).</p>
-
-        <h3>Langkah 1: Membuat Bucket R2</h3>
-        <ol>
-            <li>Login ke dashboard <a href="https://dash.cloudflare.com" target="_blank" style="color: var(--primary-color);">Cloudflare</a>.</li>
-            <li>Pilih menu <b>R2</b> di sidebar kiri, lalu klik <b>Create bucket</b>.</li>
-            <li>Beri nama bucket Anda (misal: <code>kayooh-media</code>), lalu klik <b>Create bucket</b>.</li>
-            <li><i>(Opsional)</i> Di menu Settings bucket, aktifkan <b>Public Access (Custom Domains)</b> agar gambar bisa diakses publik.</li>
-        </ol>
-
-        <h3>Langkah 2: Mengatur CORS Policy (SANGAT PENTING!) ⚠️</h3>
-        <ol>
-            <li>Masuk ke dalam bucket yang baru dibuat, pilih tab <b>Settings</b>.</li>
-            <li>Scroll ke bawah ke bagian <b>CORS Policy</b>, lalu klik <b>Add CORS policy</b> (atau Edit).</li>
-            <li>Hapus teks yang ada, lalu paste kode JSON sakti ini:</li>
-        </ol>
-        
-        <pre style="background: #1e272e; color: #00d2d3; padding: 15px; border-radius: 8px; overflow-x: auto; font-size: 13px; line-height: 1.4;">[
+        <section id="panduan-r2">
+            <h2>Panduan Cloudflare R2 (Satelit Media)</h2>
+            <div class="guide-step" style="border-left: 4px solid var(--primary);">
+                <p>Integrasi R2 (Gratis 10GB/bulan) mencegah <i>hosting</i> Anda penuh akibat penumpukan file JSON rute panjang.</p>
+                <h3>Langkah 1: Buat Bucket</h3>
+                <ol>
+                    <li>Login ke Cloudflare, masuk menu R2, dan buat bucket (misal: <code>kayooh-media</code>).</li>
+                </ol>
+                <h3>Langkah 2: Atur CORS Policy ⚠️</h3>
+                <ol>
+                    <li>Masuk tab Settings bucket Anda, cari <b>CORS Policy</b>, lalu paste JSON murni ini:</li>
+                </ol>
+                <pre>[
   {
     "AllowedOrigins": [
       "http://localhost*",
       "https://domain-kayooh-anda.com"
     ],
     "AllowedMethods": [
-      "GET",
-      "PUT",
-      "POST",
-      "DELETE",
-      "HEAD"
+      "GET", "PUT", "POST", "DELETE", "HEAD"
     ],
-    "AllowedHeaders": [
-      "*"
-    ]
+    "AllowedHeaders": [ "*" ]
   }
 ]</pre>
-        <p style="font-size: 12px; color: #7f8c8d; margin-top: -10px;"><i>*Catatan: Ganti <code>https://domain-kayooh-anda.com</code> dengan domain web Kayooh Anda (tanpa garis miring di belakang).</i></p>
+                <p style="font-size: 13px; margin-top: -10px;"><i>*Ganti domain dengan URL web Kayooh Anda (tanpa garis miring di belakang).</i></p>
+                <h3>Langkah 3: Pasang Kredensial</h3>
+                <ol>
+                    <li>Klik <b>Manage R2 API Tokens</b>, buat token dengan akses <i>Object Read & Write</i>.</li>
+                    <li>Masukkan <b>Access Key ID, Secret Access Key,</b> dan <b>Endpoint S3</b> ke Pengaturan Dashboard Kayooh.</li>
+                </ol>
+            </div>
+        </section>
 
-        <h3>Langkah 3: Mendapatkan Kredensial API</h3>
-        <ol>
-            <li>Kembali ke menu utama R2, klik <b>Manage R2 API Tokens</b> di sebelah kanan atas.</li>
-            <li>Klik <b>Create API token</b>. Beri nama (misal: "Kayooh Token").</li>
-            <li>Pada bagian Permissions, pilih <b>Object Read & Write</b>. Klik Create.</li>
-            <li>Catat <b>Access Key ID</b>, <b>Secret Access Key</b>, dan URL <b>Endpoint S3 API</b>.</li>
-            <li>Masukkan ketiga data tersebut ke menu <b>Pengaturan Kayooh</b> di Dashboard Anda. Selesai!</li>
-        </ol>
-    </div>
+    </main>
 
-    <div class="footer">
-        &copy; 2026 Kayooh Project. Dibuat untuk kebebasan mengayuh. <span style="color: var(--primary-color); font-weight: 800;">#KayoohTerus</span><br>
-        <div style="margin-top: 8px;">
-            💻 <a href="https://github.com/jeannesbryan/kayooh" target="_blank">GitHub Repository</a>
-        </div>
-    </div>
-</div>
+    <footer class="footer">
+        <div>&copy; 2026 Kayooh Project. Dibuat untuk kebebasan mengayuh.</div>
+        <a href="https://github.com/jeannesbryan/kayooh" target="_blank">⭐ Dukung di GitHub</a>
+    </footer>
 
 </body>
 </html>

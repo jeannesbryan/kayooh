@@ -52,7 +52,9 @@ try {
     
         /* --- STEALTH MODE v8.0 --- */
         #stealthOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: #000000; z-index: 99999; display: none; flex-direction: column; justify-content: center; align-items: center; color: #333; font-family: sans-serif; user-select: none; -webkit-user-select: none; }
-        .btn-stealth { background: #2c3e50; color: white; border: none; padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        /* --- STEALTH MODE & JUKEBOX BUTTONS --- */
+        .btn-stealth { background: #2c3e50; color: white; border: none; padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); pointer-events: auto; flex: 1; }
+        .action-row { display: flex; gap: 10px; margin-bottom: 10px; width: 100%; }
     </style>
 </head>
 <body>
@@ -104,9 +106,16 @@ try {
                 <div class="val" id="timeVal">00:00:00</div>
             </div>
         </div>
+        <div class="action-row">
+            <button id="btnStealth" class="btn-stealth" onclick="enableStealth()" style="display:none;">🔒 STEALTH</button>
+            <button id="btnMusic" class="btn-stealth" onclick="document.getElementById('musicInput').click()" style="background:#8e44ad;">🎵 MUSIK</button>
+            <button id="btnSkip" class="btn-stealth" onclick="audioPlayer.currentTime = audioPlayer.duration;" style="background:#d35400;">⏭️ SKIP</button>
+        </div>
+
         <button class="btn btn-stop" id="btnStart" onclick="startRide()" style="background: #2ecc71;">▶️ MULAI GOWES</button>
-        <button id="btnStealth" class="btn-stealth" onclick="enableStealth()" style="display:none;">🔒 STEALTH</button>
         <button class="btn btn-stop" id="btnStop" onclick="finishRide()" style="display: none;">⬜ SELESAI GOWES</button>
+        
+        <input type="file" id="musicInput" multiple accept="audio/*" style="display: none;" onchange="loadAndPlayMusic(event)">
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -233,6 +242,7 @@ try {
                 document.getElementById('btnStart').style.display = 'none';
                 document.getElementById('btnStop').style.display = 'block';
                 document.getElementById('btnStealth').style.display = 'flex';
+                document.getElementById('btnMusic').style.display = 'flex';
                 document.getElementById('gps-info').innerHTML = '<span style="color:#f39c12; font-weight:bold;">⚠️ SESI DIPULIHKAN DARI CRASH</span>';
                 
                 isRecording = true;
@@ -252,6 +262,10 @@ try {
             
             document.getElementById('btnStart').style.display = 'none';
             document.getElementById('btnStop').style.display = 'block';
+            
+            // --- PEMUNCULAN TOMBOL V8.0 & V9.0 ---
+            document.getElementById('btnStealth').style.display = 'flex';
+
             document.getElementById('gps-info').innerHTML = '<span style="color:#2ecc71;">● MEREKAM (MENCARI SINYAL...)</span>';
 
             startWatch();
@@ -277,9 +291,16 @@ try {
                             const utterance = new SpeechSynthesisUtterance(`Kapten, waktu gowes sudah ${nextHydrationMilestone} menit. Jangan lupa minum air agar tetap hidrasi!`);
                             utterance.lang = 'id-ID';
                             utterance.rate = 0.95;
+                            
+                            // Efek Ducking (Kecilkan Musik)
+                            if (!audioPlayer.paused) audioPlayer.volume = 0.15;
+                            utterance.onend = function() {
+                                audioPlayer.volume = 1.0;
+                            };
+
                             window.speechSynthesis.speak(utterance);
                         }
-                        nextHydrationMilestone += 20; // Set pengingat berikutnya
+                        nextHydrationMilestone += 20;
                     }
                 }
             }, 1000);
@@ -341,7 +362,7 @@ try {
             }, (err) => console.error(err), { enableHighAccuracy: true });
         }
 
-        // --- ENGINE SMART VOICE COACH (v7.0) ---
+        // --- ENGINE SMART VOICE COACH (v7.0 + v9.0 Ducking) ---
         function announceStats(distance, avgSpeed) {
             if ('speechSynthesis' in window) {
                 window.speechSynthesis.cancel(); 
@@ -350,6 +371,13 @@ try {
                 utterance.lang = 'id-ID';
                 utterance.rate = 0.95;
                 utterance.pitch = 1.0; 
+                
+                // Efek Ducking (Kecilkan Musik)
+                if (!audioPlayer.paused) audioPlayer.volume = 0.15;
+                utterance.onend = function() {
+                    audioPlayer.volume = 1.0;
+                };
+
                 window.speechSynthesis.speak(utterance);
             }
         }
@@ -426,6 +454,57 @@ try {
             // Beri feedback sedikit getaran jika didukung HP
             if (navigator.vibrate) navigator.vibrate(50);
         }
+
+        // ==========================================
+        // KAYOOH LOCAL JUKEBOX (SHUFFLE NO-REPEAT)
+        // ==========================================
+        let playlist = [];
+        let currentTrackIndex = 0;
+        const audioPlayer = new Audio();
+
+        // Algoritma Fisher-Yates Shuffle (Mengocok Array)
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]]; // Tukar posisi
+            }
+        }
+
+        function loadAndPlayMusic(event) {
+            const files = event.target.files;
+            if (files.length === 0) return;
+
+            playlist = Array.from(files); // Masukkan semua mp3 ke antrean
+            shuffleArray(playlist);       // Kocok urutannya!
+            currentTrackIndex = 0;        // Mulai dari lagu urutan pertama
+            
+            playCurrentTrack();
+        }
+
+        function playCurrentTrack() {
+            if (playlist.length === 0) return;
+            
+            // Bersihkan memori Blob URL lagu sebelumnya agar RAM tidak bocor
+            if (audioPlayer.src) URL.revokeObjectURL(audioPlayer.src);
+
+            const file = playlist[currentTrackIndex];
+            audioPlayer.src = URL.createObjectURL(file);
+            audioPlayer.play();
+            console.log("Memutar lagu: " + file.name);
+        }
+
+        // Sensor otomatis saat lagu habis
+        audioPlayer.onended = function() {
+            currentTrackIndex++; // Lanjut ke lagu berikutnya
+            
+            // Cek apakah ini lagu terakhir di antrean?
+            if (currentTrackIndex >= playlist.length) {
+                console.log("Playlist habis. Mengocok ulang 10 lagu!");
+                shuffleArray(playlist); // Kocok ulang formasi!
+                currentTrackIndex = 0;  // Mulai lagi dari indeks 0
+            }
+            playCurrentTrack();
+        };
     </script>
 </body>
 </html>
