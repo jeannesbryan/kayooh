@@ -109,6 +109,9 @@ try {
         <div class="action-row">
             <button id="btnStealth" class="btn-stealth" onclick="enableStealth()" style="display:none;">🔒 STEALTH</button>
             <button id="btnMusic" class="btn-stealth" onclick="document.getElementById('musicInput').click()" style="background:#8e44ad;">🎵 MUSIK</button>
+            
+            <button id="btnPlayPause" class="btn-stealth" onclick="togglePlayPause()" style="background:#2980b9;">⏸️ PAUSE</button>
+            
             <button id="btnSkip" class="btn-stealth" onclick="audioPlayer.currentTime = audioPlayer.duration;" style="background:#d35400;">⏭️ SKIP</button>
         </div>
 
@@ -490,7 +493,23 @@ try {
             const file = playlist[currentTrackIndex];
             audioPlayer.src = URL.createObjectURL(file);
             audioPlayer.play();
+            document.getElementById('btnPlayPause').innerText = "⏸️ PAUSE";
+            document.getElementById('btnPlayPause').style.background = "#2980b9";
             console.log("Memutar lagu: " + file.name);
+        }
+
+        function togglePlayPause() {
+            if (playlist.length === 0 || !audioPlayer.src) return;
+            
+            if (audioPlayer.paused) {
+                audioPlayer.play();
+                document.getElementById('btnPlayPause').innerText = "⏸️ PAUSE";
+                document.getElementById('btnPlayPause').style.background = "#2980b9";
+            } else {
+                audioPlayer.pause();
+                document.getElementById('btnPlayPause').innerText = "▶️ PLAY";
+                document.getElementById('btnPlayPause').style.background = "#27ae60"; // Hijau pas lagi pause
+            }
         }
 
         // Sensor otomatis saat lagu habis
